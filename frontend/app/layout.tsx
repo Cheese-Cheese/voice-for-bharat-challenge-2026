@@ -71,23 +71,18 @@ export default async function RootLayout({ children }: RootLayoutProps) {
           enableSystem
           disableTransitionOnChange
         >
-          <header className="fixed top-0 left-0 z-50 hidden w-full flex-row justify-between p-6 md:flex">
+          <header className="fixed top-0 left-0 z-50 flex w-full flex-row items-center justify-between p-6">
             <a
               target="_blank"
               rel="noopener noreferrer"
-              href="https://livekit.io"
-              className="scale-100 transition-transform duration-300 hover:scale-110"
+              href="https://murf.ai"
+              className="flex items-center gap-2.5 transition-transform duration-300 hover:scale-105"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logo} alt={`${companyName} Logo`} className="block size-6 dark:hidden" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoDark ?? logo}
-                alt={`${companyName} Logo`}
-                className="hidden size-6 dark:block"
-              />
+              <img src={logo} alt={companyName} className="block size-7" />
+              <span className="font-semibold text-sm tracking-wide text-foreground">{companyName}</span>
             </a>
-            <span className="text-foreground font-mono text-xs font-bold tracking-wider uppercase">
+            <span className="text-foreground font-mono text-xs font-bold tracking-wider uppercase hidden sm:inline">
               Built with{' '}
               <a
                 target="_blank"
