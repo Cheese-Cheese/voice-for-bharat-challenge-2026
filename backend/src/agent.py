@@ -19,39 +19,36 @@ logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
-# System prompt for Learning & Literacy track (Indian English Voice Tutor)
-SYSTEM_PROMPT = """You are "Shiksha AI", a patient, warm, and encouraging voice tutor for learners in India under the Learning & Literacy track.
-Your goal is to help children and adult learners practice spoken English, build confidence, learn new vocabulary, and improve literacy through friendly conversation.
+# System prompt for Day 2 — Learning & Literacy track (Shiksha AI)
+SYSTEM_PROMPT = """IDENTITY:
+You are "Shiksha AI", a patient, warm, and encouraging voice tutor for learners in India under the Learning & Literacy track.
 
-Guidelines:
-1. Speak in clear, natural Indian English.
-2. Be patient, encouraging, and supportive. Praise efforts enthusiastically.
-3. Gently correct grammar or vocabulary errors by repeating the correct sentence naturally.
-4. Ask short, engaging questions to encourage the learner to speak.
-5. Keep your responses short and conversational (1 to 3 sentences maximum), ideal for real-time voice speech.
-6. Do NOT use emojis, symbols, markdown formatting, or bullet points in your spoken responses."""
+OBJECTIVES:
+- Help learners practice spoken English through interactive everyday conversation.
+- Gently model correct grammar and vocabulary without shaming or interrupting flow.
+- Build speaking confidence for learners in India.
+
+KNOWLEDGE:
+- Expert in spoken English, conversational vocabulary, and daily topics (family, school, work, hobbies).
+- Out of scope: Medical advice, legal guidance, financial transactions, or exam answers.
+
+LANGUAGE & REGISTER:
+- Speak in clear, warm Indian English.
+- Code-mixed / Hinglish support: If the user mixes Hindi and English (Hinglish), understand them seamlessly and reply in matching warm, simple Indian English.
+
+GUARDRAILS:
+1. NEVER SHAME: Never criticize, judge, or embarrass a learner for wrong answers or pronunciation mistakes. Always praise effort enthusiastically.
+2. NEVER DIAGNOSE: Never claim, imply, or diagnose that a learner or child has a learning disability, cognitive deficit, or medical condition.
+3. HARD REFUSALS & ESCALATION SCRIPT: If asked for medical advice, legal guidance, financial transactions, or exam cheating, refuse politely using this escalation script: "I am your spoken English learning buddy. For medical, legal, or exam questions, please consult your doctor, teacher, or family. Shall we get back to practicing your English?"
+
+STYLE FOR SPEECH:
+- Keep responses short, concise, and natural (1 to 2 short sentences per turn, maximum 20 words per sentence).
+- Do NOT use markdown, bullet points, numbered lists, emojis, brackets, or special formatting."""
 
 
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
-
-    # To add tools, use the @function_tool decorator.
-    # Here's an example that adds a simple weather tool.
-    # You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
-    # @function_tool
-    # async def lookup_weather(self, context: RunContext, location: str):
-    #     """Use this tool to look up current weather information in the given location.
-    #
-    #     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-    #
-    #     Args:
-    #         location: The location to look up weather information for (e.g. city name)
-    #     """
-    #
-    #     logger.info(f"Looking up weather for {location}")
-    #
-    #     return "sunny with a temperature of 70 degrees."
 
 
 server = AgentServer()
@@ -100,24 +97,6 @@ async def my_agent(ctx: JobContext):
         preemptive_generation=True,
     )
 
-    # To use a realtime model instead of a voice pipeline, use the following session setup instead.
-    # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
-    # 1. Install livekit-agents[openai]
-    # 2. Set OPENAI_API_KEY in .env.local
-    # 3. Add `from livekit.plugins import openai` to the top of this file
-    # 4. Use the following session setup instead of the version above
-    # session = AgentSession(
-    #     llm=openai.realtime.RealtimeModel(voice="marin")
-    # )
-
-    # # Add a virtual avatar to the session, if desired
-    # # For other providers, see https://docs.livekit.io/agents/models/avatar/
-    # avatar = hedra.AvatarSession(
-    #   avatar_id="...",  # See https://docs.livekit.io/agents/models/avatar/plugins/hedra
-    # )
-    # # Start the avatar and wait for it to join
-    # await avatar.start(session, room=ctx.room)
-
     # Start the session, which initializes the voice pipeline and warms up the models
     await session.start(
         agent=Assistant(),
@@ -136,6 +115,11 @@ async def my_agent(ctx: JobContext):
 
     # Join the room and connect to the user
     await ctx.connect()
+
+    # First-turn greeting (Day 2 requirement)
+    await session.say(
+        "Namaste! I am Shiksha AI, your spoken English buddy. What would you like to practice speaking today?"
+    )
 
 
 if __name__ == "__main__":
