@@ -177,7 +177,7 @@ export function AgentSessionView_01({
 }: React.ComponentProps<'section'> & AgentSessionView_01Props) {
   const session = useSessionContext();
   const { messages } = useSessionMessages(session);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { state: agentState } = useAgent();
 
@@ -205,11 +205,32 @@ export function AgentSessionView_01({
       {...props}
     >
       <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
-      {/* transcript */}
 
-      <div className="absolute top-0 bottom-[135px] flex w-full flex-col md:bottom-[170px]">
-        <AnimatePresence>
-          {chatOpen && (
+      {/* Prominent State & Speaker Banner for Day 3 */}
+      <div className="bg-background/90 text-foreground absolute top-12 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-indigo-500/30 px-4 py-1.5 text-xs font-semibold shadow-xl backdrop-blur-md">
+        <span
+          className={cn(
+            'size-2.5 animate-pulse rounded-full',
+            agentState === 'speaking' && 'bg-green-500',
+            agentState === 'listening' && 'bg-indigo-500',
+            agentState === 'thinking' && 'bg-amber-500',
+            (agentState === 'connecting' || agentState === 'initializing') && 'bg-blue-500'
+          )}
+        />
+        <span>
+          {agentState === 'speaking' && '🔊 Shiksha AI is speaking...'}
+          {agentState === 'listening' && '🎙️ Listening to you...'}
+          {agentState === 'thinking' && '🧠 Thinking...'}
+          {(agentState === 'connecting' || agentState === 'initializing') &&
+            '⏳ Connecting to agent...'}
+          {agentState === 'disconnected' && 'Disconnected'}
+        </span>
+      </div>
+
+      {/* transcript positioned in lower half of screen */}
+      <AnimatePresence>
+        {chatOpen && (
+          <div className="absolute top-[48vh] bottom-[135px] z-40 flex w-full flex-col md:bottom-[160px]">
             <motion.div
               {...CHAT_MOTION_PROPS}
               className="flex h-full w-full flex-col gap-4 space-y-3 transition-opacity duration-300 ease-out"
@@ -217,12 +238,12 @@ export function AgentSessionView_01({
               <AgentChatTranscript
                 agentState={agentState}
                 messages={messages}
-                className="mx-auto w-full max-w-2xl [&_.is-user>div]:rounded-[22px] [&>div>div]:px-4 [&>div>div]:pt-40 md:[&>div>div]:px-6"
+                className="mx-auto w-full max-w-2xl [&_.is-user>div]:rounded-[22px] [&>div>div]:px-4 [&>div>div]:pt-2 md:[&>div>div]:px-6"
               />
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* Tile layout */}
       <TileLayout
         chatOpen={chatOpen}

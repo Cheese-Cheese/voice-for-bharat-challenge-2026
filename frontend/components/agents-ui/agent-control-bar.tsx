@@ -284,6 +284,8 @@ export function AgentControlBar({
     return null;
   }
 
+  const chatOpenState = onIsChatOpenChange ? isChatOpen : isChatOpenUncontrolled;
+
   return (
     <div
       aria-label="Voice assistant controls"
@@ -296,12 +298,12 @@ export function AgentControlBar({
     >
       <motion.div
         {...MOTION_PROPS}
-        inert={!(isChatOpen || isChatOpenUncontrolled)}
-        animate={isChatOpen || isChatOpenUncontrolled ? 'visible' : 'hidden'}
+        inert={!chatOpenState}
+        animate={chatOpenState ? 'visible' : 'hidden'}
         className="border-input/50 flex w-full items-start overflow-hidden border-b"
       >
         <AgentChatInput
-          chatOpen={isChatOpen || isChatOpenUncontrolled}
+          chatOpen={chatOpenState}
           onSend={handleSendMessage}
           className={cn(variant === 'livekit' && '[&_button]:rounded-full')}
         />
@@ -369,8 +371,9 @@ export function AgentControlBar({
           {/* Toggle Transcript */}
           {visibleControls.chat && (
             <Toggle
+              title={chatOpenState ? 'Hide Transcript' : 'Show Live Transcript'}
               variant={variant === 'outline' ? 'outline' : 'default'}
-              pressed={isChatOpen || isChatOpenUncontrolled}
+              pressed={chatOpenState}
               aria-label="Toggle transcript"
               onPressedChange={(state) => {
                 if (!onIsChatOpenChange) setIsChatOpenUncontrolled(state);

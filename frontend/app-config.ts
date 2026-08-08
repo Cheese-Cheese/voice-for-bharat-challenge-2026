@@ -35,7 +35,8 @@ export interface AppConfig {
 export const APP_CONFIG_DEFAULTS: AppConfig = {
   companyName: 'Shiksha AI | #VoiceForBharat',
   pageTitle: 'Shiksha AI — Voice Tutor',
-  pageDescription: 'An interactive Indian English spoken literacy & tutoring voice agent powered by Murf Falcon',
+  pageDescription:
+    'An interactive Indian English spoken literacy & tutoring voice agent powered by Murf Falcon',
 
   supportsChatInput: true,
   supportsVideoInput: true,
@@ -48,21 +49,9 @@ export const APP_CONFIG_DEFAULTS: AppConfig = {
   accentDark: '#818cf8',
   startButtonText: 'Start Learning',
 
-  // optional: audio visualization configuration
-  // audioVisualizerType: 'bar',
-  // audioVisualizerColor: '#002cf2',
-  // audioVisualizerColorDark: '#1fd5f9',
-  // audioVisualizerColorShift: 0.3,
-  // audioVisualizerBarCount: 5,
-  // audioVisualizerType: 'radial',
-  // audioVisualizerRadialBarCount: 24,
-  // audioVisualizerRadialRadius: 100,
-  // audioVisualizerType: 'grid',
-  // audioVisualizerGridRowCount: 25,
-  // audioVisualizerGridColumnCount: 25,
-  // audioVisualizerType: 'wave',
-  // audioVisualizerWaveLineWidth: 3,
-  // audioVisualizerType: 'aura',
+  audioVisualizerType: 'aura',
+  audioVisualizerColor: '#6366f1',
+  audioVisualizerColorDark: '#818cf8',
 
   // agent dispatch configuration
   agentName: process.env.AGENT_NAME ?? undefined,

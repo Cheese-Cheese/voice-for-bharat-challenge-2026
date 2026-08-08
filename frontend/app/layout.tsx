@@ -80,9 +80,11 @@ export default async function RootLayout({ children }: RootLayoutProps) {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={logo} alt={companyName} className="block size-7" />
-              <span className="font-semibold text-sm tracking-wide text-foreground">{companyName}</span>
+              <span className="text-foreground text-sm font-semibold tracking-wide">
+                {companyName}
+              </span>
             </a>
-            <span className="text-foreground font-mono text-xs font-bold tracking-wider uppercase hidden sm:inline">
+            <span className="text-foreground hidden font-mono text-xs font-bold tracking-wider uppercase sm:inline">
               Built with{' '}
               <a
                 target="_blank"
