@@ -8,18 +8,22 @@ from livekit.agents import (
     AgentSession,
     JobContext,
     JobProcess,
+    RunContext,
     cli,
+    function_tool,
     room_io,
     tokenize,
 )
 from livekit.plugins import deepgram, google, murf, noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
+import db
+
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
-# System prompt for Day 2 — Learning & Literacy track (Shiksha AI)
+# System prompt for Day 4 — Learning & Literacy track (Shiksha AI with Conditional Memory & Native Script)
 SYSTEM_PROMPT = """IDENTITY:
 You are "Shiksha AI", a patient, warm, and encouraging voice tutor for learners in India under the Learning & Literacy track.
 
@@ -32,14 +36,35 @@ KNOWLEDGE:
 - Expert in spoken English, conversational vocabulary, and daily topics (family, school, work, hobbies).
 - Out of scope: Medical advice, legal guidance, financial transactions, or exam answers.
 
-LANGUAGE & REGISTER:
+LANGUAGE & SCRIPT:
 - Speak in clear, warm Indian English.
-- Code-mixed / Hinglish support: If the user mixes Hindi and English (Hinglish), understand them seamlessly and reply in matching warm, simple Indian English.
+- Always write every language in its own native script.
+  * Hindi → Devanagari (नमस्ते), never romanized (never "namaste").
+  * Same rule for all non-English languages.
+- Code-mixed / Hinglish support: If the user mixes Hindi and English (Hinglish), understand them seamlessly and reply in matching warm Indian English with proper native script for non-English words.
 
 GUARDRAILS:
 1. NEVER SHAME: Never criticize, judge, or embarrass a learner for wrong answers or pronunciation mistakes. Always praise effort enthusiastically.
 2. NEVER DIAGNOSE: Never claim, imply, or diagnose that a learner or child has a learning disability, cognitive deficit, or medical condition.
 3. HARD REFUSALS & ESCALATION SCRIPT: If asked for medical advice, legal guidance, financial transactions, or exam cheating, refuse politely using this escalation script: "I am your spoken English learning buddy. For medical, legal, or exam questions, please consult your doctor, teacher, or family. Shall we get back to practicing your English?"
+
+RETURNING CALLER SELECTION & MEMORY LOOKUP:
+- When saved memory records exist in DB, ask who is learning at the start of call.
+- As soon as the user tells their name (e.g. "I am Ramesh" or "It's Ramesh"), IMMEDIATELY call `lookup_caller(name=name)` to retrieve their profile.
+- If found, welcome them back personally: "Welcome back Ramesh! Last time we practiced [topics]. Would you like to continue or try something new today?"
+- If the DB is empty or user is new, DO NOT ask for their name upfront! Let them practice freely and ask for consent to save their details later.
+
+PROACTIVE MEMORY & CONSENT:
+- You have persistent memory functions: `lookup_caller`, `save_caller_profile`, `forget_caller_profile`.
+- CONSENT MANDATE: During or at the end of practice (or when user shares their name), YOU MUST ASK for consent before saving:
+  "May I save your name and learning progress so I remember you next time we practice?"
+- If the learner agrees (says yes, sure, okay, yeah) -> Ask their name and then IMMEDIATELY call `save_caller_profile` with their name, level, topics, and mistakes.
+- If the learner declines (says no, don't save) -> DO NOT call `save_caller_profile`. Reassure them warmly that no data will be stored.
+- FORGET ME TOOL: If the learner asks you to "forget me", "delete my data", or "clear my memory" -> call `forget_caller_profile` immediately and confirm that all stored memory records have been wiped.
+
+CONVERSATION FLOW & DURATION:
+- Keep the practice conversation short and focused (about 3 turns of practice).
+- At the end of 3 turns, check in with the user: "We've completed a quick practice round! Would you like to continue practicing or wrap up for today?"
 
 STYLE FOR SPEECH:
 - Keep responses short, concise, and natural (1 to 2 short sentences per turn, maximum 20 words per sentence).
@@ -49,6 +74,75 @@ STYLE FOR SPEECH:
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
+
+    @function_tool
+    async def lookup_caller(
+        self, context: RunContext, name: str = "", user_id: str = ""
+    ) -> str:
+        """Lookup stored memory profile and learning history by name or user_id from SQLite database.
+
+        Args:
+            name: Learner's name (e.g. Ramesh, Priya).
+            user_id: Unique identifier for caller.
+        """
+        profile = db.get_user_profile_by_name_or_id(name=name, user_id=user_id)
+        if not profile:
+            return f"No previous memory profile found for '{name or user_id}'. This is a new learner."
+        return (
+            f"Found learner profile for {profile['name']}: "
+            f"Current Level: {profile['facts']['current_level']}, "
+            f"Topics Covered: {profile['facts']['topics_covered']}, "
+            f"Common Mistakes: {profile['facts']['common_mistakes']}."
+        )
+
+    @function_tool
+    async def save_caller_profile(
+        self,
+        context: RunContext,
+        name: str,
+        current_level: str = "Beginner",
+        topics_covered: str = "",
+        common_mistakes: str = "",
+        consent_given: bool = True,
+        user_id: str = "",
+    ) -> str:
+        """Save or update caller's profile and learning facts in SQLite database ONLY after obtaining explicit caller consent.
+
+        Args:
+            name: The caller's name.
+            current_level: Spoken English level (e.g. Beginner, Intermediate).
+            topics_covered: Topics practiced (e.g. Greetings, Ordering Food).
+            common_mistakes: Language or grammar mistakes identified during practice.
+            consent_given: Must be True if caller explicitly agreed to save their data.
+            user_id: Caller's identifier.
+        """
+        if not consent_given:
+            return "Consent was not granted. No caller profile saved."
+
+        db.save_user_profile(
+            user_id=user_id,
+            name=name,
+            current_level=current_level,
+            topics_covered=topics_covered,
+            common_mistakes=common_mistakes,
+            consent_given=consent_given,
+        )
+        return f"Successfully saved profile for {name} to persistent memory database."
+
+    @function_tool
+    async def forget_caller_profile(
+        self, context: RunContext, name: str = "", user_id: str = ""
+    ) -> str:
+        """Delete and wipe caller's stored memory profile from SQLite database when requested ('forget me').
+
+        Args:
+            name: Learner's name to delete.
+            user_id: Unique identifier for the caller.
+        """
+        deleted = db.delete_user_profile(name=name, user_id=user_id)
+        if deleted:
+            return "Successfully deleted and wiped stored memory records."
+        return "No memory records were found to delete."
 
 
 server = AgentServer()
@@ -64,35 +158,24 @@ server.setup_fnc = prewarm
 @server.rtc_session(agent_name="my-agent")
 async def my_agent(ctx: JobContext):
     # Logging setup
-    # Add any other context you want in all log entries here
     ctx.log_context_fields = {
         "room": ctx.room.name,
     }
 
     # Set up a voice AI pipeline using Murf Falcon, Gemini, Deepgram, and the LiveKit turn detector
     session = AgentSession(
-        # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
-        # See all available models at https://docs.livekit.io/agents/models/stt/
         stt=deepgram.STT(model="nova-3", language="multi"),
-        # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
-        # See all available models at https://docs.livekit.io/agents/models/llm/
         llm=google.LLM(
             model="gemini-3.5-flash-lite",
         ),
-        # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
-        # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
         tts=murf.TTS(
             voice="Anisha",
             style="Conversation",
             tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
             text_pacing=True,
         ),
-        # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
-        # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
-        # allow the LLM to generate a response while waiting for the end of turn
-        # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
         preemptive_generation=True,
     )
 
@@ -115,10 +198,29 @@ async def my_agent(ctx: JobContext):
     # Join the room and connect to the user
     await ctx.connect()
 
-    # First-turn greeting (Day 2 requirement)
-    await session.say(
-        "Namaste! I am Shiksha AI, your spoken English buddy. What would you like to practice speaking today?"
-    )
+    # Dynamic Conditional Memory Greeting: Check SQLite for existing memory profiles
+    profiles = db.get_all_user_profiles()
+    if len(profiles) >= 1:
+        names = [p["name"] for p in profiles if p.get("name")]
+        if len(names) == 1:
+            greeting = (
+                f"Namaste! Welcome back to Shiksha AI. "
+                f"Are you {names[0]}, or is someone new practicing today?"
+            )
+        else:
+            names_str = ", ".join(names[:-1]) + " or " + names[-1]
+            greeting = (
+                f"Namaste! Welcome back to Shiksha AI. "
+                f"Who is practicing today? ({names_str}, or someone new?)"
+            )
+    else:
+        # Default greeting when DB has no saved profiles (never ask for name upfront!)
+        greeting = (
+            "Namaste! I am Shiksha AI, your spoken English buddy. "
+            "What would you like to practice speaking today?"
+        )
+
+    await session.say(greeting)
 
 
 if __name__ == "__main__":
