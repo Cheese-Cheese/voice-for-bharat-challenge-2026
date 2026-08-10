@@ -300,6 +300,19 @@ async def my_agent(ctx: JobContext):
     # Join the room and connect to the user
     await ctx.connect()
 
+    @ctx.room.on("data_received")
+    def on_data_received(data_packet: rtc.DataPacket):
+        try:
+            payload_str = data_packet.data.decode("utf-8")
+            logger.info(f"[DataChannel] Data received from room: {payload_str}")
+            parsed = json.loads(payload_str)
+            if parsed.get("type") == "toggle_offline_mode":
+                enabled = bool(parsed.get("enabled", False))
+                tools.set_simulate_offline(enabled)
+                logger.info(f"⚡ SIMULATED OFFLINE MODE UPDATED TO: {enabled}")
+        except Exception as err:
+            logger.warning(f"Data packet parse error: {err}")
+
     # Dynamic Conditional Memory Greeting: Check SQLite for existing memory profiles
     profiles = db.get_all_user_profiles()
     if len(profiles) >= 1:

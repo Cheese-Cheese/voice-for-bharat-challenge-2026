@@ -151,6 +151,7 @@ export function AgentSessionView_01({
   const { messages } = useSessionMessages(session);
   const [chatOpen, setChatOpen] = useState(false);
   const [activeToolCard, setActiveToolCard] = useState<any>(null);
+  const [isOfflineSimulated, setIsOfflineSimulated] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { state: agentState } = useAgent();
 
@@ -160,6 +161,27 @@ export function AgentSessionView_01({
     chat: supportsChatInput,
     camera: supportsVideoInput,
     screenShare: supportsScreenShare,
+  };
+
+  const toggleOfflineMode = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    e?.preventDefault();
+    const nextState = !isOfflineSimulated;
+    console.log('[FallbackTest] Toggling simulated offline mode to:', nextState);
+    setIsOfflineSimulated(nextState);
+    if (room && room.localParticipant) {
+      try {
+        const payload = new TextEncoder().encode(
+          JSON.stringify({ type: 'toggle_offline_mode', enabled: nextState })
+        );
+        room.localParticipant.publishData(payload, { reliable: true, topic: 'simulated_offline' });
+        console.log('[FallbackTest] Sent toggle_offline_mode payload to room:', nextState);
+      } catch (err) {
+        console.error('Failed to send toggle_offline_mode payload:', err);
+      }
+    } else {
+      console.log('[FallbackTest] Local participant not ready yet, saved state:', nextState);
+    }
   };
 
   useEffect(() => {
@@ -175,6 +197,7 @@ export function AgentSessionView_01({
           const str = new TextDecoder().decode(payload);
           const data = JSON.parse(str);
           if (data.type === 'tool_result') {
+            console.log('[FallbackTest] Received tool_result data payload:', data);
             setActiveToolCard(data);
           }
         } catch (err) {
@@ -183,11 +206,24 @@ export function AgentSessionView_01({
       }
     };
 
+    // Send initial offline status if user turned it on before room connected
+    if (room.state === 'connected' && room.localParticipant && isOfflineSimulated) {
+      try {
+        const payload = new TextEncoder().encode(
+          JSON.stringify({ type: 'toggle_offline_mode', enabled: true })
+        );
+        room.localParticipant.publishData(payload, { reliable: true, topic: 'simulated_offline' });
+        console.log('[FallbackTest] Sent initial toggle_offline_mode payload to room on connect');
+      } catch (err) {
+        console.error('Failed to send initial toggle_offline_mode payload:', err);
+      }
+    }
+
     room.on(RoomEvent.DataReceived, handleDataReceived);
     return () => {
       room.off(RoomEvent.DataReceived, handleDataReceived);
     };
-  }, [room]);
+  }, [room, isOfflineSimulated]);
 
   useEffect(() => {
     const lastMessage = messages.at(-1);
@@ -206,25 +242,58 @@ export function AgentSessionView_01({
     >
       <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
 
-      {/* Prominent State & Speaker Banner for Day 3 */}
-      <div className="bg-background/90 text-foreground absolute top-12 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-indigo-500/30 px-4 py-1.5 text-xs font-semibold shadow-xl backdrop-blur-md">
-        <span
+      {/* Prominent State & Speaker Banner for Day 3 & Day 5 Fallback Test Switch */}
+      <div className="pointer-events-auto absolute top-12 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3">
+        <div className="bg-background/90 text-foreground flex items-center gap-2 rounded-full border border-indigo-500/30 px-4 py-1.5 text-xs font-semibold shadow-xl backdrop-blur-md">
+          <span
+            className={cn(
+              'size-2.5 animate-pulse rounded-full',
+              agentState === 'speaking' && 'bg-green-500',
+              agentState === 'listening' && 'bg-indigo-500',
+              agentState === 'thinking' && 'bg-amber-500',
+              (agentState === 'connecting' || agentState === 'initializing') && 'bg-blue-500'
+            )}
+          />
+          <span>
+            {agentState === 'speaking' && '🔊 Shiksha AI is speaking...'}
+            {agentState === 'listening' && '🎙️ Listening to you...'}
+            {agentState === 'thinking' && '🧠 Thinking...'}
+            {(agentState === 'connecting' || agentState === 'initializing') &&
+              '⏳ Connecting to agent...'}
+            {agentState === 'disconnected' && 'Disconnected'}
+          </span>
+        </div>
+
+        {/* iOS-Style Horizontal Sliding Switch for Graceful Fallback Test */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isOfflineSimulated}
+          onClick={toggleOfflineMode}
           className={cn(
-            'size-2.5 animate-pulse rounded-full',
-            agentState === 'speaking' && 'bg-green-500',
-            agentState === 'listening' && 'bg-indigo-500',
-            agentState === 'thinking' && 'bg-amber-500',
-            (agentState === 'connecting' || agentState === 'initializing') && 'bg-blue-500'
+            'pointer-events-auto relative inline-flex cursor-pointer select-none items-center gap-2.5 rounded-full border px-3.5 py-1.5 shadow-xl backdrop-blur-md transition-all duration-300 ease-in-out focus:outline-none',
+            isOfflineSimulated
+              ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+              : 'bg-background/90 hover:bg-background border-indigo-500/30 text-foreground'
           )}
-        />
-        <span>
-          {agentState === 'speaking' && '🔊 Shiksha AI is speaking...'}
-          {agentState === 'listening' && '🎙️ Listening to you...'}
-          {agentState === 'thinking' && '🧠 Thinking...'}
-          {(agentState === 'connecting' || agentState === 'initializing') &&
-            '⏳ Connecting to agent...'}
-          {agentState === 'disconnected' && 'Disconnected'}
-        </span>
+        >
+          <span className="text-xs font-semibold">⚡ Fallback Test</span>
+          <span
+            className={cn(
+              'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-300 ease-in-out',
+              isOfflineSimulated
+                ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                : 'bg-zinc-700'
+            )}
+          >
+            <span
+              className={cn(
+                'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-300 ease-in-out',
+                isOfflineSimulated ? 'translate-x-5' : 'translate-x-0'
+              )}
+            />
+          </span>
+        </button>
       </div>
 
       {/* Transcript or Live Domain Data Card (Day 5) positioned right below the voice wave visualizer */}
@@ -265,6 +334,12 @@ export function AgentSessionView_01({
                   >
                     ✕
                   </button>
+
+                  {activeToolCard.status === 'offline_fallback' && (
+                    <div className="mb-2 rounded-md bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-300">
+                      ⚡ Offline Fallback Mode Active (Simulated Network Outage)
+                    </div>
+                  )}
 
                   {activeToolCard.tool === 'lookup_word_definition' && (
                     <div className="space-y-2">

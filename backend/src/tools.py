@@ -8,6 +8,21 @@ logger = logging.getLogger("agent.tools")
 FREE_DICTIONARY_API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/"
 LANGUAGE_TOOL_API_URL = "https://api.languagetool.org/v2/check"
 
+# Global simulation flag for Day 5 failure path testing
+_SIMULATE_OFFLINE = False
+
+
+def set_simulate_offline(enabled: bool) -> None:
+    """Enable or disable simulated API network failure for Day 5 testing."""
+    global _SIMULATE_OFFLINE
+    _SIMULATE_OFFLINE = enabled
+    logger.info(f"Simulated API offline mode set to: {_SIMULATE_OFFLINE}")
+
+
+def is_simulate_offline() -> bool:
+    """Return whether simulated API offline mode is active."""
+    return _SIMULATE_OFFLINE
+
 
 async def fetch_word_definition(word: str) -> dict[str, Any]:
     """Fetch live definition, phonetics, part of speech, and example usage for a word from Free Dictionary API.
@@ -19,6 +34,16 @@ async def fetch_word_definition(word: str) -> dict[str, Any]:
         dict containing word, definition, part_of_speech, example, phonetics, or error notice.
     """
     clean_word = word.strip().lower()
+
+    if _SIMULATE_OFFLINE:
+        logger.warning(
+            f"Simulated offline mode active. Intercepting dictionary lookup for '{clean_word}'."
+        )
+        return {
+            "status": "offline_fallback",
+            "word": clean_word,
+            "message": "Simulated live API network outage (Offline Fallback Test Mode active).",
+        }
     url = f"{FREE_DICTIONARY_API_URL}{clean_word}"
 
     try:
@@ -105,6 +130,16 @@ async def check_grammar_rules(sentence: str) -> dict[str, Any]:
     """
     clean_text = sentence.strip()
     payload = {"text": clean_text, "language": "en-US"}
+
+    if _SIMULATE_OFFLINE:
+        logger.warning(
+            f"Simulated offline mode active. Intercepting grammar check for '{clean_text}'."
+        )
+        return {
+            "status": "offline_fallback",
+            "sentence": clean_text,
+            "message": "Simulated live API network outage (Offline Fallback Test Mode active).",
+        }
 
     try:
         async with (

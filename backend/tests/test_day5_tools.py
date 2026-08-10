@@ -34,3 +34,21 @@ async def test_live_grammar_check():
         assert result["is_correct"] is False
         assert result["error_count"] > 0
         assert len(result["rules"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_simulated_offline_mode():
+    """Test that setting simulated offline mode forces offline_fallback status."""
+    from tools import set_simulate_offline
+
+    set_simulate_offline(True)
+    try:
+        dict_res = await fetch_word_definition("wisdom")
+        assert dict_res["status"] == "offline_fallback"
+        assert "Simulated live API network outage" in dict_res["message"]
+
+        grammar_res = await check_grammar_rules("I is happy.")
+        assert grammar_res["status"] == "offline_fallback"
+        assert "Simulated live API network outage" in grammar_res["message"]
+    finally:
+        set_simulate_offline(False)
