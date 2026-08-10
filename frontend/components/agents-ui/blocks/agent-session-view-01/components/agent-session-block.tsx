@@ -1,8 +1,14 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { RoomEvent } from 'livekit-client';
 import { AnimatePresence, type MotionProps, motion } from 'motion/react';
-import { useAgent, useSessionContext, useSessionMessages } from '@livekit/components-react';
+import {
+  useAgent,
+  useRoomContext,
+  useSessionContext,
+  useSessionMessages,
+} from '@livekit/components-react';
 import { AgentChatTranscript } from '@/components/agents-ui/agent-chat-transcript';
 import {
   AgentControlBar,
@@ -102,56 +108,21 @@ export function Fade({ top = false, bottom = false, className }: FadeProps) {
 }
 
 export interface AgentSessionView_01Props {
-  /**
-   * Message shown above the controls before the first chat message is sent.
-   *
-   * @default 'Agent is listening, ask it a question'
-   */
   preConnectMessage?: string;
-  /**
-   * Enables or disables the chat toggle and transcript input controls.
-   *
-   * @default true
-   */
   supportsChatInput?: boolean;
-  /**
-   * Enables or disables camera controls in the bottom control bar.
-   *
-   * @default true
-   */
   supportsVideoInput?: boolean;
-  /**
-   * Enables or disables screen sharing controls in the bottom control bar.
-   *
-   * @default true
-   */
   supportsScreenShare?: boolean;
-  /**
-   * Shows a pre-connect buffer state with a shimmer message before messages appear.
-   *
-   * @default true
-   */
   isPreConnectBufferEnabled?: boolean;
 
-  /** Selects the visualizer style rendered in the main tile area. */
   audioVisualizerType?: 'bar' | 'wave' | 'grid' | 'radial' | 'aura';
-  /** Primary hex color used by supported audio visualizer variants. */
   audioVisualizerColor?: `#${string}`;
-  /** Hue shift intensity used by certain visualizers. */
   audioVisualizerColorShift?: number;
-  /** Number of bars to render when `audioVisualizerType` is `bar`. */
   audioVisualizerBarCount?: number;
-  /** Number of rows in the visualizer when `audioVisualizerType` is `grid`. */
   audioVisualizerGridRowCount?: number;
-  /** Number of columns in the visualizer when `audioVisualizerType` is `grid`. */
   audioVisualizerGridColumnCount?: number;
-  /** Number of radial bars when `audioVisualizerType` is `radial`. */
   audioVisualizerRadialBarCount?: number;
-  /** Base radius of the radial visualizer when `audioVisualizerType` is `radial`. */
   audioVisualizerRadialRadius?: number;
-  /** Stroke width of the wave path when `audioVisualizerType` is `wave`. */
   audioVisualizerWaveLineWidth?: number;
-  /** Optional class name merged onto the outer `<section>` container. */
   className?: string;
 }
 
@@ -176,8 +147,10 @@ export function AgentSessionView_01({
   ...props
 }: React.ComponentProps<'section'> & AgentSessionView_01Props) {
   const session = useSessionContext();
+  const room = useRoomContext();
   const { messages } = useSessionMessages(session);
-  const [chatOpen, setChatOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [activeToolCard, setActiveToolCard] = useState<any>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { state: agentState } = useAgent();
 
@@ -188,6 +161,33 @@ export function AgentSessionView_01({
     camera: supportsVideoInput,
     screenShare: supportsScreenShare,
   };
+
+  useEffect(() => {
+    if (!room) return;
+    const handleDataReceived = (
+      payload: Uint8Array,
+      participant: any,
+      kind: any,
+      topic?: string
+    ) => {
+      if (topic === 'tool_results' || !topic) {
+        try {
+          const str = new TextDecoder().decode(payload);
+          const data = JSON.parse(str);
+          if (data.type === 'tool_result') {
+            setActiveToolCard(data);
+          }
+        } catch (err) {
+          console.error('Failed to parse tool result data payload:', err);
+        }
+      }
+    };
+
+    room.on(RoomEvent.DataReceived, handleDataReceived);
+    return () => {
+      room.off(RoomEvent.DataReceived, handleDataReceived);
+    };
+  }, [room]);
 
   useEffect(() => {
     const lastMessage = messages.at(-1);
@@ -227,10 +227,13 @@ export function AgentSessionView_01({
         </span>
       </div>
 
-      {/* transcript positioned in lower half of screen */}
-      <AnimatePresence>
-        {chatOpen && (
-          <div className="absolute top-[48vh] bottom-[135px] z-40 flex w-full flex-col md:bottom-[160px]">
+      {/* Transcript or Live Domain Data Card (Day 5) positioned right below the voice wave visualizer */}
+      <AnimatePresence mode="wait">
+        {chatOpen ? (
+          <div
+            key="chat-transcript"
+            className="absolute top-[48vh] bottom-[135px] z-40 flex w-full flex-col md:bottom-[160px]"
+          >
             <motion.div
               {...CHAT_MOTION_PROPS}
               className="flex h-full w-full flex-col gap-4 space-y-3 transition-opacity duration-300 ease-out"
@@ -242,6 +245,93 @@ export function AgentSessionView_01({
               />
             </motion.div>
           </div>
+        ) : (
+          activeToolCard && (
+            <div
+              key="tool-data-card"
+              className="absolute top-[60vh] bottom-[135px] z-40 flex w-full flex-col items-center justify-start md:bottom-[160px]"
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 15, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 15, scale: 0.96 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className="mx-auto w-full max-w-lg px-4"
+              >
+                <div className="bg-background/95 relative rounded-2xl border border-indigo-500/40 p-5 shadow-2xl backdrop-blur-xl">
+                  <button
+                    onClick={() => setActiveToolCard(null)}
+                    className="text-muted-foreground hover:text-foreground absolute top-3 right-3 rounded-full p-1 text-xs transition-colors"
+                  >
+                    ✕
+                  </button>
+
+                  {activeToolCard.tool === 'lookup_word_definition' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-indigo-500/20 px-2.5 py-0.5 text-xs font-semibold tracking-wider text-indigo-400 uppercase">
+                          📖 Live Dictionary Data
+                        </span>
+                        {activeToolCard.phonetics && (
+                          <span className="text-muted-foreground font-mono text-xs">
+                            {activeToolCard.phonetics}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-xl font-bold text-indigo-300 capitalize">
+                        {activeToolCard.word}
+                        {activeToolCard.part_of_speech && (
+                          <span className="text-muted-foreground ml-2 text-xs font-normal italic">
+                            ({activeToolCard.part_of_speech})
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-foreground/90 text-sm leading-relaxed">
+                        {activeToolCard.definition || activeToolCard.message}
+                      </p>
+                      {activeToolCard.example && (
+                        <p className="border-l-2 border-indigo-500/40 pl-3 text-xs text-indigo-200/90 italic">
+                          "{activeToolCard.example}"
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {activeToolCard.tool === 'check_sentence_grammar' && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold tracking-wider text-emerald-400 uppercase">
+                          ✍️ Grammar Analysis
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground text-xs italic">
+                        "{activeToolCard.sentence}"
+                      </p>
+                      {activeToolCard.is_correct ? (
+                        <p className="text-sm font-semibold text-emerald-400">
+                          ✓ Grammatically Correct!
+                        </p>
+                      ) : (
+                        <div className="space-y-1.5 text-xs">
+                          <p className="font-semibold text-amber-400">
+                            Found {activeToolCard.error_count} potential issue(s):
+                          </p>
+                          {activeToolCard.rules?.map((rule: any, idx: number) => (
+                            <div key={idx} className="bg-muted/40 rounded-lg p-2.5">
+                              <span className="font-semibold text-amber-300">
+                                {rule.issue_type}:{' '}
+                              </span>
+                              <span>{rule.message}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )
         )}
       </AnimatePresence>
       {/* Tile layout */}
