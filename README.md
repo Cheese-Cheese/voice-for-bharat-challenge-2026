@@ -1,278 +1,206 @@
-# Voice Agent Starter — Powered by Murf Falcon
+# Shiksha AI (शिक्षा AI) — Spoken English Voice Tutor for Bharat
 
-Build a production voice AI agent in 5 minutes. Powered by the fastest TTS on the market - swap the system prompt to build anything from customer support to language tutors.
+[![Voice for Bharat Challenge 2026](https://img.shields.io/badge/Challenge-Voice%20for%20Bharat%202026-indigo)](https://murf.ai)
+[![Track: Learning & Literacy](https://img.shields.io/badge/Track-Learning%20%26%20Literacy-emerald)](https://murf.ai)
+[![TTS: Murf Falcon](https://img.shields.io/badge/TTS-Murf%20Falcon%20(Anisha)-6366F1)](https://murf.ai/api/docs/text-to-speech/streaming)
+[![STT: Deepgram Nova-3](https://img.shields.io/badge/STT-Deepgram%20Nova--3-002cf2)](https://deepgram.com)
+[![LLM: Gemini 3.5 Flash Lite](https://img.shields.io/badge/LLM-Gemini%203.5%20Flash%20Lite-4285F4)](https://aistudio.google.com)
+[![Telephony: LiveKit SIP](https://img.shields.io/badge/Telephony-LiveKit%20SIP%20%2B%20Linphone-ff69b4)](https://docs.livekit.io/telephony)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Murf Falcon](https://img.shields.io/badge/TTS-Murf%20Falcon-6366F1)](https://murf.ai/api/docs/text-to-speech/streaming) [![LiveKit](https://img.shields.io/badge/Transport-LiveKit-002cf2)](https://docs.livekit.io) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-
----
-
-## Why Murf Falcon
-
-- **55ms model latency** - fastest production TTS
-- **130ms time-to-first-audio** across 10+ global regions
-- **$0.01/1000 characters** - up to 10x cheaper than alternatives
-- **150+ voices** across 35+ languages
-- **99.38% pronunciation accuracy**
+**Shiksha AI** is a patient, warm, and interactive spoken English tutor built for learners across India. Powered by **Murf Falcon TTS** (the world's fastest streaming TTS API) and **LiveKit Agents**, Shiksha AI helps users practice conversational English, look up live word definitions, analyze sentence grammar, remember past learner progress, and receive daily outbound practice calls over SIP telephony.
 
 ---
 
-## Architecture
+## 🌟 Architecture Diagram
 
 ```mermaid
-flowchart LR
-    A[🎙️ User speaks] -->|audio| B[Deepgram STT]
-    B -->|text| C[LLM]
-    C -->|response text| D[Murf Falcon TTS]
-    D -->|audio| E[LiveKit]
-    E -->|stream| F[🔊 User hears]
+flowchart TD
+    subgraph Clients["User Interaction Interfaces"]
+        UI["🖥️ Next.js Web App"]
+        SIP["📞 Linphone SIP Client / Telephony"]
+    end
 
-    style A fill:#444441,stroke:#888780,color:#fff
-    style B fill:#185FA5,stroke:#85B7EB,color:#fff
-    style C fill:#534AB7,stroke:#AFA9EC,color:#fff
-    style D fill:#0F6E56,stroke:#5DCAA5,color:#fff
-    style E fill:#D85A30,stroke:#F0997B,color:#fff
-    style F fill:#444441,stroke:#888780,color:#fff
+    subgraph LiveKitEngine["Real-time Transport & Dispatch"]
+        LK["⚡ LiveKit Cloud Server / Telephony Gateway"]
+    end
+
+    subgraph VoicePipeline["Shiksha AI Python Agent (backend/src/agent.py & outbound.py)"]
+        STT["🎙️ Deepgram Nova-3 STT (Multilingual)"]
+        VAD["🧠 Silero VAD + LiveKit Turn Detector"]
+        LLM["💡 Google Gemini 3.5 Flash Lite"]
+        TTS["🔊 Murf Falcon TTS (Anisha - Conversation)"]
+    end
+
+    subgraph DataIntegrations["Live Web APIs & Persistent Storage"]
+        DictAPI["📖 Live Free Dictionary API (api.dictionaryapi.dev)"]
+        GrammarAPI["✍️ Live LanguageTool Engine (api.languagetool.org)"]
+        DB["💾 Persistent SQLite Learner Database (memory.sqlite)"]
+    end
+
+    UI <--> LK
+    SIP <--> LK
+    LK <--> STT
+    LK <--> TTS
+    STT --> VAD --> LLM
+    LLM <--> DictAPI
+    LLM <--> GrammarAPI
+    LLM <--> DB
+    LLM --> TTS
 ```
 
 ---
 
-## Quickstart
+## 📅 Challenge Progress & Implementation Matrix
 
-### Prerequisites
+### 🚀 Day 1 – The Setup (Voice Pipeline Foundation)
+- Integrated **LiveKit Agents SDK** (~1.4) with **Murf Falcon TTS** (`voice="Anisha"`, `style="Conversation"`).
+- Configured **Deepgram Nova-3** (`language="multi"`) for multilingual Indian speech-to-text.
+- Connected **Google Gemini 3.5 Flash Lite** for ultra-fast, low-latency conversational responses.
 
-- **Python** 3.10+
-- **[uv](https://docs.astral.sh/uv/)** - fast Python package manager
-  ```bash
-  # macOS/Linux
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  # Windows (PowerShell)
-  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-  ```
-- **Node.js** 18+
-- **pnpm** — fast Node package manager
-  ```bash
-  npm install -g pnpm
-  ```
-- A [LiveKit](https://cloud.livekit.io/) project (free tier available)
+### 🎨 Day 2 – The Look (UI & Glowing Aura Orb)
+- Custom dark glassmorphism web UI (`frontend/`).
+- Customized LiveKit visualizer to **Glowing Aura Orb** (`'aura'`).
+- Interactive collapsible chat transcript toggle (`💬`) defaulted to clean visualizer view.
+- Prominent branding badges for **Learning & Literacy** and **Voice for Bharat 2026**.
 
-### Step 1: Clone the repo
+### 🎛️ Day 3 – The Control (State & Audio Toolbar)
+- Top status pill displaying real-time agent states (`🔊 Shiksha AI is speaking...`, `🎙️ Listening...`, `🧠 Thinking...`).
+- Audio control toolbar for microphone toggle, volume, and clean session disconnect.
 
-```bash
-git clone https://github.com/murf-ai/murf-livekit-starter.git
-cd murf-livekit-starter
-```
+### 💾 Day 4 – The Memory (SQLite Persistent Learner Profiles)
+- Built persistent SQLite database (`backend/db/memory.sqlite`) storing learner progress:
+  - Learner name, level (`Beginner`, `Intermediate`), topics covered, and common mistakes.
+- **Proactive User Consent**: Demands explicit consent before saving any personal details.
+- **Native Script Rule**: Strictly requires non-English words to be output in native script (e.g., Hindi in Devanagari: **नमस्ते**).
+- Dynamic greeting based on stored memory records.
 
-### Step 2: Set up environment variables
+### 🌐 Day 5 – The Tools & Live Web Lookup
+- **Data Source Disclosure**: All domain lookup tools connect to **100% LIVE public Web APIs**. No dummy local datasets are used for lookups.
+  - 📖 **Live Word Definition Lookup** (`lookup_word_definition`): Fetches live definitions, parts of speech, phonetics, and example sentences from the [Free Dictionary API](https://api.dictionaryapi.dev).
+  - ✍️ **Live Grammar Analysis** (`check_sentence_grammar`): Checks real-time sentence grammar and suggestions via the [LanguageTool Engine](https://api.languagetool.org).
+- **Graceful Spoken Offline Fallback**: Handles network outages gracefully out loud in warm spoken words without going silent or outputting raw JSON errors.
+- **Real-time UI Domain Data Cards**: Pushes live fetched dictionary/grammar data packets directly to the web UI, rendering elegant glassmorphism cards below the visualizer.
+- **⚡ Fallback Test Switch**: iOS-style horizontal sliding toggle on the frontend allowing instant live simulation of API network failure during demos and testing.
 
-Create `.env.local` in both `backend/` and `frontend/` (copy from `.env.example` in each). You need:
-
-| Variable                               | Where to get it                                        | Required |
-| -------------------------------------- | ------------------------------------------------------ | -------- |
-| `LIVEKIT_URL`                          | LiveKit Cloud dashboard                                | Yes      |
-| `LIVEKIT_API_KEY`                      | LiveKit Cloud dashboard                                | Yes      |
-| `LIVEKIT_API_SECRET`                   | LiveKit Cloud dashboard                                | Yes      |
-| `MURF_API_KEY`                         | [murf.ai/api/dashboard](https://murf.ai/api/dashboard) | Yes      |
-| `DEEPGRAM_API_KEY`                     | [deepgram.com](https://deepgram.com)                   | Yes      |
-| `GOOGLE_API_KEY` (or `OPENAI_API_KEY`) | Depends on LLM choice                                  | Yes      |
-
-### Step 3: Install backend dependencies
-
-```bash
-cd backend
-uv sync
-uv run python src/agent.py download-files
-```
-
-### Step 4: Install frontend dependencies
-
-```bash
-cd frontend
-pnpm install
-```
-
-### Step 5: Run it
-
-**Option A - All-in-one (from repo root):**
-
-```bash
-# macOS/Linux
-chmod +x start_app.sh
-./start_app.sh
-
-# Windows (PowerShell)
-.\start_app.ps1
-```
-
-**Option B - Separate terminals:**
-
-```bash
-# Terminal 1 — LiveKit Server
-livekit-server --dev
-
-# Terminal 2 — Backend agent
-cd backend && uv run python src/agent.py dev
-
-# Terminal 3 — Frontend
-cd frontend && pnpm dev
-```
-
-Then open **http://localhost:3000** in your browser.
-
-You should now see the voice agent UI. Click **Start talking**, allow microphone access, and speak — the agent will respond with Murf Falcon TTS. Ensure your backend and (if using Option B) LiveKit server are running.
+### 📞 Day 6 – Make Outbound Calls (SIP Telephony & Linphone)
+- Created standalone outbound call script (`backend/src/outbound.py`) for scheduled daily practice calls.
+- **Step 4 Mandatory Opening Script Compliance**:
+  1. *Who is calling*: *"Namaste! I am Shiksha AI, your spoken English learning buddy."*
+  2. *Why calling*: *"I am calling for your scheduled daily English speaking practice session."*
+  3. *How to opt out*: *"If you do not want to receive these daily practice calls, just tell me to stop or unsubscribe."*
+- Dispatches SIP outbound calls to Linphone clients (`sip:cheese-cheese@sip.linphone.org`) via LiveKit Telephony Trunking (`ST_7Bgf2f6Cm5Bs`).
+- Automatically triggers Murf Falcon TTS opening speech upon audio track subscription.
 
 ---
 
-## Deploy
+## 📢 Data Source Disclosure (Day 5 Mandate)
 
-Want to deploy this beyond localhost? You'll need to deploy **two services**: the backend agent and the frontend. Both must use the same LiveKit project.
-
-> This is a two-service app — the backend agent and the frontend UI deploy separately. You'll need both running and connected to the same LiveKit project.
-
-### Backend (Python agent) — Deploy to Railway
-
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/tIVCF1?referralCode=cNjn2P&utm_medium=integration&utm_source=template&utm_campaign=generic)
-
-Set these environment variables in Railway:
-
-- `MURF_API_KEY`
-- `DEEPGRAM_API_KEY`
-- `GOOGLE_API_KEY` or `OPENAI_API_KEY`
-- `LIVEKIT_URL`
-- `LIVEKIT_API_KEY`
-- `LIVEKIT_API_SECRET`
-
-The backend runs as a long-lived Python process that connects to LiveKit as an agent. Railway handles this well.
-
-### Frontend (Next.js) — Deploy to Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/murf-ai/murf-livekit-starter&root-directory=frontend&env=LIVEKIT_URL,LIVEKIT_API_KEY,LIVEKIT_API_SECRET&project-name=murf-voice-agent&repository-name=murf-voice-agent)
-
-Set these environment variables in Vercel:
-
-- `LIVEKIT_URL`
-- `LIVEKIT_API_KEY`
-- `LIVEKIT_API_SECRET`
-- `AGENT_NAME` (optional — for explicit agent dispatch)
-
-The frontend is a standard Next.js app. Point it at the same LiveKit instance your backend agent is connected to.
-
-### Connecting them
-
-The frontend and backend don't call each other directly — they both connect to **LiveKit**, which handles the real-time audio transport.
-
-1. Use the **same** `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` on both Railway and Vercel
-2. Set `AGENT_NAME=my-agent` on Vercel — this matches the `agent_name="my-agent"` registered in `backend/src/agent.py`
-3. Verify: Railway logs should show the agent connected to LiveKit. Open your Vercel URL, click **Start talking** — the agent should respond
-
-If the agent doesn't connect, double-check that both services point to the same LiveKit project and that the backend is running (check Railway logs).
+> [!IMPORTANT]
+> **Data Origin Notice**:
+> All dictionary definitions and grammar rules used by Shiksha AI are fetched **LIVE** over the internet at runtime:
+> 1. **Free Dictionary API**: `https://api.dictionaryapi.dev/api/v2/entries/en/<word>` (Live)
+> 2. **LanguageTool Engine**: `https://api.languagetool.org/v2/check` (Live)
+> 
+> No offline/dummy fallback data is hardcoded into lookups. If a live API experiences network timeouts or simulated offline mode is toggled, Shiksha AI executes its graceful spoken fallback—explaining the word directly in its own warm spoken words while alerting the user visually via the UI data card.
 
 ---
 
-## Change the Use Case
-
-The default system prompt makes this a **customer support agent**. You can change the agent’s behavior by editing the prompt.
-
-**Where the prompt lives:** `backend/src/agent.py`- the `SYSTEM_PROMPT` constant (near the top of the file, after the imports). Change that string to change what your voice agent does.
-
-### Example prompts (copy-paste)
-
-**Customer Support (default):**
-
-```
-You are a friendly and efficient customer support agent for a tech company. Help users with account issues, billing questions, and product troubleshooting. Be concise, empathetic, and solution-oriented. If you don't know something, say so honestly and offer to escalate.
-```
-
-**Language Tutor:**
-
-```
-You are a patient and encouraging language tutor helping the user practice conversational Spanish. Speak primarily in Spanish but switch to English to explain grammar or vocabulary when needed. Correct mistakes gently and suggest better phrasing. Keep conversations natural and fun.
-```
-
-**AI Receptionist:**
-
-```
-You are a professional receptionist for a medical clinic. Help callers schedule appointments, answer questions about office hours and services, and take messages for doctors. Be warm but efficient. Ask for the caller's name and reason for calling upfront.
-```
-
-See the Configuration section below for voice, STT, and LLM options.
-
----
-
-## Configuration
-
-### Murf voice
-
-Edit the `tts=murf.TTS(...)` call in `backend/src/agent.py`. Set the `voice` argument to any Murf voice ID. Examples:
-
-- `Anisha` — Indian English (female, default in this starter)
-- `Pooja` — Indian English (female)
-- `Samar` — Indian English (male)
-- `Amara` — US English (female)
-- `Gordon` — US English (male)
-- `Hazel` — UK English (female)
-- `Bertie` — UK English (male)
-
-Browse all voices: [Murf Voice Library](https://murf.ai/api/docs/voices-styles/voice-library).
-
-### STT provider
-
-STT is configured in `backend/src/agent.py` in the `AgentSession(stt=...)` call. The default is Deepgram (`deepgram.STT(model="nova-3")`). You can swap to another LiveKit-compatible STT plugin if needed.
-
-### LLM (Gemini vs OpenAI)
-
-- **Gemini (default):** Set `GOOGLE_API_KEY` and use `llm=google.LLM(model="gemini-3.5-flash-lite")` in `agent.py`.
-- **OpenAI:** Set `OPENAI_API_KEY`, add the OpenAI plugin, and use the corresponding `llm=openai.LLM(...)` in `agent.py`.
-
-### Audio format
-
-Murf Falcon and LiveKit handle audio format internally. For advanced options, see [Murf API docs](https://murf.ai/api/docs) and [LiveKit docs](https://docs.livekit.io).
-
----
-
-## Project Structure
+## 🛠️ Repository Structure
 
 ```
 murf-livekit-starter/
-├── backend/                 # Python voice agent (LiveKit Agents + Murf Falcon)
+├── backend/
+│   ├── db/
+│   │   ├── memory.sqlite        # SQLite persistent learner database
+│   │   └── schema.sql           # Database schema definition
 │   ├── src/
-│   │   └── agent.py         # Agent entrypoint, pipeline (STT/LLM/TTS), system prompt
-│   ├── tests/               # Agent tests
-│   ├── .env.example         # Backend env template
-│   ├── pyproject.toml       # Python deps (uv)
-│   └── railway.toml         # Railway deploy config
-├── frontend/                # Next.js UI for voice sessions
-│   ├── app/
-│   │   ├── page.tsx         # Main page
-│   │   └── api/token/       # LiveKit token endpoint (dev)
-│   ├── components/          # UI (agents-ui, app config, theme)
-│   ├── app-config.ts        # Branding, title, button text, accent
-│   ├── .env.example         # Frontend env template
-│   └── package.json         # Node deps (pnpm)
-├── start_app.sh             # Start LiveKit + backend + frontend (macOS/Linux)
-├── start_app.ps1            # Start LiveKit + backend + frontend (Windows)
-├── README.md                # This file
+│   │   ├── agent.py             # Main LiveKit voice agent entrypoint (Inbound)
+│   │   ├── outbound.py          # Day 6 Outbound SIP call agent entrypoint
+│   │   ├── db.py                # Database wrapper functions
+│   │   └── tools.py             # Live Web API integrations (Free Dict & LanguageTool)
+│   ├── tests/
+│   │   ├── test_day4_memory.py  # Unit tests for SQLite memory & consent
+│   │   ├── test_day5_tools.py   # Unit tests for Live Web APIs & simulated offline mode
+│   │   └── test_day6_outbound.py# Unit tests for SIP outbound script compliance
+│   ├── pyproject.toml           # Python dependencies (managed via uv)
+│   └── .env.local               # Environment variables
+├── frontend/
+│   ├── app/                     # Next.js pages and token API endpoint
+│   ├── components/              # UI components (agents-ui, visualizers, data cards)
+│   ├── app-config.ts            # Branding and accent color config
+│   └── package.json             # Frontend dependencies (managed via pnpm)
+├── challenges/                  # Challenge task reference files (Day 1 - Day 6)
+└── README.md                    # Project documentation
 ```
 
-For deeper documentation on each part, see:
+---
 
-- [Backend Documentation](./backend/README.md) — agent pipeline, voice/LLM/STT configuration, testing, deployment
-- [Frontend Documentation](./frontend/README.md) — UI customization, visualizers, theming, component architecture
+## ⚙️ Setup & Running Locally
+
+### 1. Prerequisites
+- **Python 3.10+** with **[uv](https://docs.astral.sh/uv/)** package manager
+- **Node.js 18+** with **pnpm**
+- **Linphone** (for testing Day 6 SIP outbound calls)
+
+### 2. Environment Variables (`backend/.env.local`)
+Copy `backend/.env.example` to `backend/.env.local` and add:
+```env
+LIVEKIT_URL=wss://your-livekit-domain.livekit.cloud
+LIVEKIT_API_KEY=your_livekit_api_key
+LIVEKIT_API_SECRET=your_livekit_api_secret
+
+MURF_API_KEY=your_murf_api_key
+DEEPGRAM_API_KEY=your_deepgram_api_key
+GOOGLE_API_KEY=your_gemini_api_key
+
+# Telephony (Day 6 Outbound SIP)
+SIP_TRUNK_ID=ST_7Bgf2f6Cm5Bs
+MY_SIP_URI=sip:cheese-cheese@sip.linphone.org
+```
+
+### 3. Run Backend & Frontend
+
+#### Terminal 1 — Python Voice Agent (Inbound Web App):
+```bash
+cd backend
+uv sync
+uv run python src/agent.py dev
+```
+
+#### Terminal 2 — Next.js Frontend UI:
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+Open **`http://localhost:3000`** in your browser and start talking!
+
+#### Outbound SIP Practice Call (Day 6):
+Ensure Linphone app is open and registered to `sip:cheese-cheese@sip.linphone.org`, then run:
+```bash
+cd backend
+uv run python src/outbound.py
+```
 
 ---
 
-## Links
+## 🧪 Running Unit Tests
 
-- [Murf API Docs](https://murf.ai/api/docs)
-- [Murf Voice Library](https://murf.ai/api/docs/voices-styles/voice-library)
-- [LiveKit Docs](https://docs.livekit.io)
-- [Deepgram Docs](https://developers.deepgram.com)
-- [Murf Falcon Benchmarks](https://murf.ai/falcon/benchmarks)
-- [TTS Latency Benchmarker](https://github.com/sahilsgupta/tts-latency-benchmarker) — run your own p50/p95 tests across providers
-- [Murf Discord](https://discord.gg/FbKAy96Sz7)
-- [Murf Startup Incubator](https://murf.ai/api) — 50M free characters for startups
+Run the full automated test suite (10/10 tests passing):
+```bash
+cd backend
+uv run pytest
+```
+
+Run ruff linting & formatting:
+```bash
+cd backend
+uv run ruff check .
+uv run ruff format .
+```
 
 ---
 
-## License
+## 📜 License
 
-MIT
+MIT License © 2026 Voice for Bharat Challenge
