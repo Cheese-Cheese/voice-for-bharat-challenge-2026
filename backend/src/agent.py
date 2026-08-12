@@ -77,6 +77,18 @@ PROACTIVE MEMORY & CONSENT:
 - If the learner declines (says no, don't save) -> DO NOT call `save_caller_profile`. Reassure them warmly that no data will be stored.
 - FORGET ME TOOL: If the learner asks you to "forget me", "delete my data", or "clear my memory" -> call `forget_caller_profile` immediately and confirm that all stored memory records have been wiped.
 
+HUMAN TEACHER ESCALATION MANDATE (DAY 7):
+1. TRIGGERS FOR HUMAN HELP:
+   - LEARNER FRUSTRATION / GIVING UP: If the learner expresses discouragement, frustration, or distress (e.g. "I'm stupid", "English is too hard", "I can't do this", "I give up").
+   - HUMAN TEACHER REQUEST: If the learner explicitly asks for a human teacher, tutor, or expert review (e.g. "Can a real teacher help me?", "I need a human tutor").
+2. MANDATORY CONSENT GUARDRAIL:
+   - Before logging a ticket, YOU MUST ASK for permission:
+     "I hear that you are feeling frustrated. Would you like me to send your practice notes to a human English teacher so they can help you?"
+   - If the learner agrees (says yes, sure, okay) -> Call `escalate_to_human_teacher` with consent_given=True.
+   - If the learner declines (says no, don't) -> DO NOT call `escalate_to_human_teacher`. Reassure them warmly.
+3. REFERENCE ID & NEXT STEP:
+   - When a ticket is created, report the reference ID returned by the tool (e.g. ESC-XXXXXX) to the learner and reassure them warmly that a human teacher will review their practice notes within 24 hours.
+
 CONVERSATION FLOW & DURATION:
 - Keep the practice conversation short and focused (about 3 turns of practice).
 - At the end of 3 turns, check in with the user: "We've completed a quick practice round! Would you like to continue practicing or wrap up for today?"
@@ -90,6 +102,63 @@ class Assistant(Agent):
     def __init__(self, room: rtc.Room | None = None) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
         self.room = room
+
+    @function_tool
+    async def escalate_to_human_teacher(
+        self,
+        context: RunContext,
+        learner_name: str,
+        reason: str,
+        summary: str,
+        urgency: str = "medium",
+        consent_given: bool = True,
+    ) -> str:
+        """Create a human teacher escalation support ticket when a learner is frustrated, overwhelmed, or requests human teacher help.
+
+        Args:
+            learner_name: Name of the learner needing human teacher assistance.
+            reason: Specific reason for escalation (e.g. 'Learner Frustration / Giving Up' or 'Human Teacher Guidance Requested').
+            summary: Short 2-3 sentence summary of what was practiced, what the issue is, and learner's preferred language.
+            urgency: Priority level ('low', 'medium', 'high', or 'emergency').
+            consent_given: True ONLY if the learner explicitly gave permission to send their info to a human teacher.
+        """
+        if not consent_given:
+            return "Consent not granted by the learner. Human escalation ticket was NOT created."
+
+        ticket = db.create_escalation_ticket(
+            learner_name=learner_name or "Learner",
+            reason=reason,
+            summary=summary,
+            urgency=urgency,
+        )
+
+        try:
+            payload = json.dumps(
+                {
+                    "type": "tool_result",
+                    "tool": "escalate_to_human_teacher",
+                    "reference_id": ticket["reference_id"],
+                    "learner_name": ticket["learner_name"],
+                    "reason": ticket["reason"],
+                    "summary": ticket["summary"],
+                    "urgency": ticket["urgency"],
+                    "status": ticket["status"],
+                    "created_at": ticket["created_at"],
+                }
+            ).encode("utf-8")
+            if self.room and self.room.local_participant:
+                await self.room.local_participant.publish_data(
+                    payload, topic="tool_results"
+                )
+        except Exception as e:
+            logger.warning(
+                f"Could not publish escalation tool_result data payload: {e}"
+            )
+
+        return (
+            f"Successfully created human teacher ticket {ticket['reference_id']} with urgency {ticket['urgency']}. "
+            f"Inform the learner that their ticket reference ID is {ticket['reference_id']} and a human teacher will review their practice notes within 24 hours."
+        )
 
     @function_tool
     async def lookup_word_definition(self, context: RunContext, word: str) -> str:
@@ -164,7 +233,10 @@ class Assistant(Agent):
 
         if res["status"] == "success":
             if res["is_correct"]:
-                return f"Grammar check passed cleanly! The sentence '{sentence}' is grammatically correct."
+                return (
+                    f"LanguageTool found 0 rule violations for '{sentence}'. "
+                    f"Praise the learner warmly! If you notice any subtle conversational tense or phrasing issues, mention them encouragingly."
+                )
             rules_summary = "; ".join(
                 [
                     f"{r['issue_type']}: {r['message']} (Suggestions: {', '.join(r['replacements'])})"

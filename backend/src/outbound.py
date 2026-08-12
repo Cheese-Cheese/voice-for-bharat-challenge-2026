@@ -68,6 +68,61 @@ class OutboundAssistant(Agent):
         self.room = room
 
     @function_tool
+    async def escalate_to_human_teacher(
+        self,
+        context: RunContext,
+        learner_name: str,
+        reason: str,
+        summary: str,
+        urgency: str = "medium",
+        consent_given: bool = True,
+    ) -> str:
+        """Create a human teacher escalation support ticket when a learner is frustrated or requests human teacher help.
+
+        Args:
+            learner_name: Name of the learner needing human teacher assistance.
+            reason: Specific reason for escalation (e.g. 'Learner Frustration' or 'Teacher Review Requested').
+            summary: Short summary of what was practiced, the issue, and learner's language.
+            urgency: Priority level ('low', 'medium', 'high', or 'emergency').
+            consent_given: True ONLY if the learner explicitly gave permission.
+        """
+        if not consent_given:
+            return "Consent not granted. Escalation ticket NOT created."
+
+        ticket = db.create_escalation_ticket(
+            learner_name=learner_name or "Learner",
+            reason=reason,
+            summary=summary,
+            urgency=urgency,
+        )
+
+        try:
+            payload = json.dumps(
+                {
+                    "type": "tool_result",
+                    "tool": "escalate_to_human_teacher",
+                    "reference_id": ticket["reference_id"],
+                    "learner_name": ticket["learner_name"],
+                    "reason": ticket["reason"],
+                    "summary": ticket["summary"],
+                    "urgency": ticket["urgency"],
+                    "status": ticket["status"],
+                    "created_at": ticket["created_at"],
+                }
+            ).encode("utf-8")
+            if self.room and self.room.local_participant:
+                await self.room.local_participant.publish_data(
+                    payload, topic="tool_results"
+                )
+        except Exception as e:
+            logger.warning(f"Could not publish escalation tool_result payload: {e}")
+
+        return (
+            f"Successfully created human teacher ticket {ticket['reference_id']} with urgency {ticket['urgency']}. "
+            f"Inform the learner that reference ID is {ticket['reference_id']} and a teacher will review within 24 hours."
+        )
+
+    @function_tool
     async def lookup_word_definition(self, context: RunContext, word: str) -> str:
         """Fetch real-time word definition from live Free Dictionary API."""
         res = await tools.fetch_word_definition(word)
@@ -129,7 +184,10 @@ class OutboundAssistant(Agent):
 
         if res["status"] == "success":
             if res["is_correct"]:
-                return f"Grammar check passed cleanly! The sentence '{sentence}' is correct."
+                return (
+                    f"LanguageTool found 0 rule violations for '{sentence}'. "
+                    f"Praise the learner warmly! If you notice any subtle conversational tense or phrasing issues, mention them encouragingly."
+                )
             rules_summary = "; ".join(
                 [f"{r['issue_type']}: {r['message']}" for r in res["rules"]]
             )

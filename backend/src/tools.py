@@ -129,7 +129,7 @@ async def check_grammar_rules(sentence: str) -> dict[str, Any]:
         dict containing matches, rule explanations, suggested replacements, or error notice.
     """
     clean_text = sentence.strip()
-    payload = {"text": clean_text, "language": "en-US"}
+    payload = {"text": clean_text, "language": "en-US", "level": "picky"}
 
     if _SIMULATE_OFFLINE:
         logger.warning(

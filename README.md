@@ -91,6 +91,14 @@ flowchart TD
 - Dispatches SIP outbound calls to Linphone clients (`sip:cheese-cheese@sip.linphone.org`) via LiveKit Telephony Trunking (`ST_7Bgf2f6Cm5Bs`).
 - Automatically triggers Murf Falcon TTS opening speech upon audio track subscription.
 
+### 👩‍🏫 Day 7 – Know When to Ask for Human Help (Human Teacher Escalation Pipeline)
+- **Learner Frustration & Teacher Request Triggers**: Teaches Shiksha AI to recognize learner discouragement (*"I'm stupid"*, *"English is too hard"*) or explicit requests for a human teacher.
+- **Mandatory Consent Guardrail**: Requires explicit learner consent before creating any support ticket (*"Would you like me to send your practice notes to a human English teacher?"*).
+- **SQLite Escalation Database**: Saves ticket records in SQLite (`escalations` table) with unique reference IDs (e.g. `ESC-8A39F2`), urgency levels (`low`, `medium`, `high`), summary, and status (`OPEN` / `RESOLVED`).
+- **Dedicated Teacher Dashboard Page (`/teacher-dashboard`)**: Modern dark-mode glassmorphism dashboard in Next.js showing metrics, filtering, ticket details, and interactive **"✓ Mark Resolved"** buttons.
+- **Real-time Live UI Ticket Card**: Displays glowing ticket cards on screen right below the visualizer upon creation.
+- **Picky Grammar Engine**: Configured LanguageTool Picky Mode (`level="picky"`) to catch style, phrasing, and tense errors with suggestion pills.
+
 ---
 
 ## 📢 Data Source Disclosure (Day 5 Mandate)
@@ -99,7 +107,7 @@ flowchart TD
 > **Data Origin Notice**:
 > All dictionary definitions and grammar rules used by Shiksha AI are fetched **LIVE** over the internet at runtime:
 > 1. **Free Dictionary API**: `https://api.dictionaryapi.dev/api/v2/entries/en/<word>` (Live)
-> 2. **LanguageTool Engine**: `https://api.languagetool.org/v2/check` (Live)
+> 2. **LanguageTool Engine**: `https://api.languagetool.org/v2/check` (Live with Picky Mode)
 > 
 > No offline/dummy fallback data is hardcoded into lookups. If a live API experiences network timeouts or simulated offline mode is toggled, Shiksha AI executes its graceful spoken fallback—explaining the word directly in its own warm spoken words while alerting the user visually via the UI data card.
 
@@ -111,25 +119,23 @@ flowchart TD
 murf-livekit-starter/
 ├── backend/
 │   ├── db/
-│   │   ├── memory.sqlite        # SQLite persistent learner database
+│   │   ├── memory.sqlite        # SQLite persistent learner & escalation database
 │   │   └── schema.sql           # Database schema definition
 │   ├── src/
 │   │   ├── agent.py             # Main LiveKit voice agent entrypoint (Inbound)
 │   │   ├── outbound.py          # Day 6 Outbound SIP call agent entrypoint
-│   │   ├── db.py                # Database wrapper functions
+│   │   ├── db.py                # Database wrapper functions (profiles & escalations)
 │   │   └── tools.py             # Live Web API integrations (Free Dict & LanguageTool)
-│   ├── tests/
-│   │   ├── test_day4_memory.py  # Unit tests for SQLite memory & consent
-│   │   ├── test_day5_tools.py   # Unit tests for Live Web APIs & simulated offline mode
-│   │   └── test_day6_outbound.py# Unit tests for SIP outbound script compliance
-│   ├── pyproject.toml           # Python dependencies (managed via uv)
-│   └── .env.local               # Environment variables
+│   └── tests/                   # Automated unit test suite (12 tests)
 ├── frontend/
-│   ├── app/                     # Next.js pages and token API endpoint
+│   ├── app/
+│   │   ├── api/escalations/     # Next.js API route for teacher dashboard
+│   │   ├── teacher-dashboard/   # Day 7 Human Teacher Escalation Dashboard page
+│   │   └── page.tsx             # Main voice agent session page
 │   ├── components/              # UI components (agents-ui, visualizers, data cards)
 │   ├── app-config.ts            # Branding and accent color config
 │   └── package.json             # Frontend dependencies (managed via pnpm)
-├── challenges/                  # Challenge task reference files (Day 1 - Day 6)
+├── challenges/                  # Challenge task reference files (Day 1 - Day 7)
 └── README.md                    # Project documentation
 ```
 

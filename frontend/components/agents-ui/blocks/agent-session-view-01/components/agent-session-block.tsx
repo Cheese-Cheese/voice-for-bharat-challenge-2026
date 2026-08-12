@@ -271,10 +271,10 @@ export function AgentSessionView_01({
           aria-checked={isOfflineSimulated}
           onClick={toggleOfflineMode}
           className={cn(
-            'pointer-events-auto relative inline-flex cursor-pointer select-none items-center gap-2.5 rounded-full border px-3.5 py-1.5 shadow-xl backdrop-blur-md transition-all duration-300 ease-in-out focus:outline-none',
+            'pointer-events-auto relative inline-flex cursor-pointer items-center gap-2.5 rounded-full border px-3.5 py-1.5 shadow-xl backdrop-blur-md transition-all duration-300 ease-in-out select-none focus:outline-none',
             isOfflineSimulated
               ? 'border-amber-500/60 bg-amber-500/20 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
-              : 'bg-background/90 hover:bg-background border-indigo-500/30 text-foreground'
+              : 'bg-background/90 hover:bg-background text-foreground border-indigo-500/30'
           )}
         >
           <span className="text-xs font-semibold">⚡ Fallback Test</span>
@@ -374,33 +374,86 @@ export function AgentSessionView_01({
 
                   {activeToolCard.tool === 'check_sentence_grammar' && (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="rounded-md bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold tracking-wider text-emerald-400 uppercase">
                           ✍️ Grammar Analysis
+                        </span>
+                        <span className="text-muted-foreground font-mono text-[10px]">
+                          LanguageTool Engine
                         </span>
                       </div>
                       <p className="text-muted-foreground text-xs italic">
                         "{activeToolCard.sentence}"
                       </p>
                       {activeToolCard.is_correct ? (
-                        <p className="text-sm font-semibold text-emerald-400">
-                          ✓ Grammatically Correct!
-                        </p>
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-emerald-400">
+                            ✓ No Syntax Violations Detected
+                          </p>
+                          <p className="text-muted-foreground text-[11px]">
+                            LanguageTool found no rule issues. Shiksha AI evaluates natural spoken
+                            style.
+                          </p>
+                        </div>
                       ) : (
                         <div className="space-y-1.5 text-xs">
                           <p className="font-semibold text-amber-400">
-                            Found {activeToolCard.error_count} potential issue(s):
+                            Found {activeToolCard.error_count} potential rule issue(s):
                           </p>
                           {activeToolCard.rules?.map((rule: any, idx: number) => (
-                            <div key={idx} className="bg-muted/40 rounded-lg p-2.5">
-                              <span className="font-semibold text-amber-300">
-                                {rule.issue_type}:{' '}
-                              </span>
-                              <span>{rule.message}</span>
+                            <div key={idx} className="bg-muted/40 space-y-1 rounded-lg p-2.5">
+                              <div>
+                                <span className="font-semibold text-amber-300">
+                                  {rule.issue_type}:{' '}
+                                </span>
+                                <span>{rule.message}</span>
+                              </div>
+                              {rule.replacements && rule.replacements.length > 0 && (
+                                <p className="text-[11px] text-emerald-300">
+                                  Suggested fix: {rule.replacements.join(', ')}
+                                </p>
+                              )}
                             </div>
                           ))}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {activeToolCard.tool === 'escalate_to_human_teacher' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="rounded-md bg-rose-500/20 px-2.5 py-0.5 text-xs font-semibold tracking-wider text-rose-300 uppercase">
+                          👩‍🏫 Human Teacher Ticket Created
+                        </span>
+                        <span className="rounded border border-indigo-500/30 bg-indigo-950 px-2 py-0.5 font-mono text-xs font-bold text-indigo-300">
+                          {activeToolCard.reference_id}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-indigo-200">
+                          Learner: {activeToolCard.learner_name}
+                        </h3>
+                        <p className="mt-0.5 text-xs font-semibold text-amber-300">
+                          Reason: {activeToolCard.reason} ({activeToolCard.urgency} urgency)
+                        </p>
+                      </div>
+                      <p className="bg-muted/40 text-foreground/90 border-border/40 rounded-xl border p-3 text-xs leading-relaxed">
+                        {activeToolCard.summary}
+                      </p>
+                      <div className="text-muted-foreground flex items-center justify-between pt-1 text-[11px]">
+                        <span>
+                          Status: <strong className="text-amber-400">OPEN</strong>
+                        </span>
+                        <a
+                          href="/teacher-dashboard"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-indigo-400 underline hover:text-indigo-300"
+                        >
+                          View Teacher Dashboard →
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>

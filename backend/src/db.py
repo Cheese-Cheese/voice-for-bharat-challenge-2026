@@ -19,7 +19,7 @@ def get_connection() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """Initialize the SQLite database schema for storing caller memory profiles."""
+    """Initialize the SQLite database schema for storing caller memory profiles and human escalation tickets."""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -33,6 +33,19 @@ def init_db() -> None:
                 common_mistakes TEXT DEFAULT '',
                 consent_given INTEGER DEFAULT 1,
                 last_interaction TEXT NOT NULL
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS escalations (
+                reference_id TEXT PRIMARY KEY,
+                learner_name TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                urgency TEXT DEFAULT 'medium',
+                status TEXT DEFAULT 'OPEN',
+                created_at TEXT NOT NULL
             )
             """
         )
@@ -193,5 +206,76 @@ def delete_user_profile(name: str = "", user_id: str = "") -> bool:
             cursor.execute("DELETE FROM users")
         else:
             cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def create_escalation_ticket(
+    learner_name: str,
+    reason: str,
+    summary: str,
+    urgency: str = "medium",
+) -> dict[str, Any]:
+    """Create a new human escalation support ticket in SQLite with a unique reference ID."""
+    init_db()
+    import uuid
+
+    ref_id = f"ESC-{uuid.uuid4().hex[:6].upper()}"
+    now_iso = datetime.now(timezone.utc).isoformat()
+    urgency = urgency.lower() if urgency else "medium"
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO escalations (
+                reference_id, learner_name, reason, summary, urgency, status, created_at
+            ) VALUES (?, ?, ?, ?, ?, 'OPEN', ?)
+            """,
+            (ref_id, learner_name, reason, summary, urgency, now_iso),
+        )
+        conn.commit()
+
+    return {
+        "reference_id": ref_id,
+        "learner_name": learner_name,
+        "reason": reason,
+        "summary": summary,
+        "urgency": urgency,
+        "status": "OPEN",
+        "created_at": now_iso,
+    }
+
+
+def get_all_escalation_tickets() -> list[dict[str, Any]]:
+    """Retrieve all human teacher escalation tickets from SQLite."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM escalations ORDER BY created_at DESC")
+        rows = cursor.fetchall()
+        return [
+            {
+                "reference_id": row["reference_id"],
+                "learner_name": row["learner_name"],
+                "reason": row["reason"],
+                "summary": row["summary"],
+                "urgency": row["urgency"],
+                "status": row["status"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+
+def update_escalation_status(reference_id: str, status: str = "RESOLVED") -> bool:
+    """Update the status of an escalation ticket in SQLite (e.g., OPEN -> RESOLVED)."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE escalations SET status = ? WHERE reference_id = ?",
+            (status.upper(), reference_id.strip()),
+        )
         conn.commit()
         return cursor.rowcount > 0

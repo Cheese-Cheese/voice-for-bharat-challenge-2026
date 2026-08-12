@@ -59,10 +59,18 @@ export const WelcomeView = ({
       className="flex min-h-svh w-full flex-col items-center justify-center p-4 md:p-8"
     >
       <section className="bg-card/50 border-border/60 flex w-full max-w-xl flex-col items-center justify-center rounded-3xl border p-6 text-center shadow-xl backdrop-blur-md md:p-10">
-        {/* Shiksha AI Badge */}
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-indigo-400">
-          <GraduationCap className="size-4" />
-          <span>Learning & Literacy Track | #VoiceForBharat</span>
+        {/* Shiksha AI Badge & Teacher Dashboard Link */}
+        <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-indigo-400">
+            <GraduationCap className="size-4" />
+            <span>Learning & Literacy Track | #VoiceForBharat</span>
+          </div>
+          <a
+            href="/teacher-dashboard"
+            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-300 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/20"
+          >
+            <span>👩‍🏫 Teacher Dashboard</span>
+          </a>
         </div>
 
         {/* Hero Title */}
