@@ -13,13 +13,9 @@ from db import (
 def clean_db():
     """Ensure clean test state before each test."""
     init_db()
-    delete_user_profile(user_id="user_ramesh")
-    delete_user_profile(user_id="user_priya")
-    delete_user_profile(user_id="default_user")
+    delete_user_profile()
     yield
-    delete_user_profile(user_id="user_ramesh")
-    delete_user_profile(user_id="user_priya")
-    delete_user_profile(user_id="default_user")
+    delete_user_profile()
 
 
 def test_sqlite_save_and_retrieve():

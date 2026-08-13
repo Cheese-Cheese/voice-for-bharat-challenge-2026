@@ -99,6 +99,15 @@ flowchart TD
 - **Real-time Live UI Ticket Card**: Displays glowing ticket cards on screen right below the visualizer upon creation.
 - **Picky Grammar Engine**: Configured LanguageTool Picky Mode (`level="picky"`) to catch style, phrasing, and tense errors with suggestion pills.
 
+### 📊 Day 8 – Build a Call Analytics Dashboard
+- **Grounded Success Criteria**: Defined call outcomes strictly for the Learning & Literacy track:
+  - **`SUCCESS`**: Learner completes $\ge 1$ practice activity (word lookup, grammar check, 3-turn practice, or saving learner profile).
+  - **`FAILED`**: Session closes with 0 activities (early disconnect / hang-up).
+- **SQLite Call Logger (`call_logs` table)**: Automatically tracks session duration, participant name, channel type (`Web Browser` or `SIP Outbound`), exercises count, outcome, and failure reasons upon session exit.
+- **Dedicated Next.js Call Analytics Dashboard Page (`/analytics-dashboard`)**:
+  - Displays the 3 core metrics: 📞 **Total Calls**, ✅ **Successful Calls**, ❌ **Failed Calls**.
+  - Advanced metrics: 🎯 **Success Rate (%)**, ⏱️ **Avg Duration (s)**, **Failure Reason Breakdown**, and **Recent Call Sessions Table** with live auto-refreshing every 5 seconds.
+
 ---
 
 ## 📢 Data Source Disclosure (Day 5 Mandate)
@@ -119,23 +128,26 @@ flowchart TD
 murf-livekit-starter/
 ├── backend/
 │   ├── db/
-│   │   ├── memory.sqlite        # SQLite persistent learner & escalation database
+│   │   ├── memory.sqlite        # SQLite persistent learner, escalation & call logs DB
 │   │   └── schema.sql           # Database schema definition
 │   ├── src/
 │   │   ├── agent.py             # Main LiveKit voice agent entrypoint (Inbound)
 │   │   ├── outbound.py          # Day 6 Outbound SIP call agent entrypoint
-│   │   ├── db.py                # Database wrapper functions (profiles & escalations)
+│   │   ├── db.py                # Database wrapper functions (profiles, escalations, call logs)
 │   │   └── tools.py             # Live Web API integrations (Free Dict & LanguageTool)
-│   └── tests/                   # Automated unit test suite (12 tests)
+│   └── tests/                   # Automated unit test suite (15 tests)
 ├── frontend/
 │   ├── app/
+│   │   ├── analytics-dashboard/ # Day 8 Call Analytics Dashboard page
+│   │   ├── api/analytics/       # Next.js API route for analytics metrics
 │   │   ├── api/escalations/     # Next.js API route for teacher dashboard
 │   │   ├── teacher-dashboard/   # Day 7 Human Teacher Escalation Dashboard page
+│   │   ├── icon.svg             # Shiksha AI tab favicon logo
 │   │   └── page.tsx             # Main voice agent session page
 │   ├── components/              # UI components (agents-ui, visualizers, data cards)
 │   ├── app-config.ts            # Branding and accent color config
 │   └── package.json             # Frontend dependencies (managed via pnpm)
-├── challenges/                  # Challenge task reference files (Day 1 - Day 7)
+├── challenges/                  # Challenge task reference files (Day 1 - Day 8)
 └── README.md                    # Project documentation
 ```
 

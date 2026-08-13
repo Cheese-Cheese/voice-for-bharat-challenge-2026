@@ -1,4 +1,14 @@
+import pytest
+
 import db
+
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    """Ensure escalations table is cleared before and after each test."""
+    db.clear_all_escalation_tickets()
+    yield
+    db.clear_all_escalation_tickets()
 
 
 def test_escalation_ticket_creation_and_retrieval():

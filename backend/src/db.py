@@ -49,6 +49,20 @@ def init_db() -> None:
             )
             """
         )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS call_logs (
+                call_id TEXT PRIMARY KEY,
+                participant_name TEXT DEFAULT 'Learner',
+                channel TEXT DEFAULT 'Web Browser',
+                duration_seconds INTEGER DEFAULT 0,
+                exercises_completed INTEGER DEFAULT 0,
+                outcome TEXT NOT NULL,
+                failure_reason TEXT DEFAULT '',
+                created_at TEXT NOT NULL
+            )
+            """
+        )
         conn.commit()
 
 
@@ -279,3 +293,169 @@ def update_escalation_status(reference_id: str, status: str = "RESOLVED") -> boo
         )
         conn.commit()
         return cursor.rowcount > 0
+
+
+def log_call_session(
+    call_id: str = "",
+    participant_name: str = "Learner",
+    channel: str = "Web Browser",
+    duration_seconds: int = 0,
+    exercises_completed: int = 0,
+    failure_reason: str = "",
+) -> dict[str, Any]:
+    """Log the outcome of a voice agent call session into SQLite.
+
+    A call is considered SUCCESS if exercises_completed > 0, otherwise FAILED.
+    """
+    init_db()
+    import uuid
+
+    if not call_id:
+        call_id = f"CALL-{uuid.uuid4().hex[:6].upper()}"
+
+    outcome = "SUCCESS" if exercises_completed > 0 else "FAILED"
+    if outcome == "FAILED" and not failure_reason:
+        failure_reason = "Incomplete Session / Early Disconnect"
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO call_logs (
+                call_id, participant_name, channel, duration_seconds,
+                exercises_completed, outcome, failure_reason, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(call_id) DO UPDATE SET
+                participant_name = excluded.participant_name,
+                channel = excluded.channel,
+                duration_seconds = excluded.duration_seconds,
+                exercises_completed = excluded.exercises_completed,
+                outcome = excluded.outcome,
+                failure_reason = excluded.failure_reason,
+                created_at = excluded.created_at
+            """,
+            (
+                call_id,
+                participant_name,
+                channel,
+                duration_seconds,
+                exercises_completed,
+                outcome,
+                failure_reason,
+                now_iso,
+            ),
+        )
+        conn.commit()
+
+    return {
+        "call_id": call_id,
+        "participant_name": participant_name,
+        "channel": channel,
+        "duration_seconds": duration_seconds,
+        "exercises_completed": exercises_completed,
+        "outcome": outcome,
+        "failure_reason": failure_reason,
+        "created_at": now_iso,
+    }
+
+
+def get_call_analytics() -> dict[str, Any]:
+    """Compute aggregate call analytics (total, successful, failed, success rate, avg duration) from SQLite."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as total FROM call_logs")
+        total_calls = cursor.fetchone()["total"]
+
+        cursor.execute(
+            "SELECT COUNT(*) as successful FROM call_logs WHERE outcome = 'SUCCESS'"
+        )
+        successful_calls = cursor.fetchone()["successful"]
+
+        cursor.execute(
+            "SELECT COUNT(*) as failed FROM call_logs WHERE outcome = 'FAILED'"
+        )
+        failed_calls = cursor.fetchone()["failed"]
+
+        cursor.execute("SELECT AVG(duration_seconds) as avg_dur FROM call_logs")
+        avg_duration = round(cursor.fetchone()["avg_dur"] or 0, 1)
+
+        cursor.execute(
+            """
+            SELECT failure_reason, COUNT(*) as count
+            FROM call_logs
+            WHERE outcome = 'FAILED' AND failure_reason != ''
+            GROUP BY failure_reason
+            """
+        )
+        failure_reasons = {
+            row["failure_reason"]: row["count"] for row in cursor.fetchall()
+        }
+
+        success_rate = (
+            round((successful_calls / total_calls) * 100, 1) if total_calls > 0 else 0.0
+        )
+
+        return {
+            "total_calls": total_calls,
+            "successful_calls": successful_calls,
+            "failed_calls": failed_calls,
+            "success_rate": success_rate,
+            "average_duration_seconds": avg_duration,
+            "failure_reasons": failure_reasons,
+        }
+
+
+def get_recent_call_logs(limit: int = 20) -> list[dict[str, Any]]:
+    """Retrieve recent call log entries from SQLite."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM call_logs ORDER BY created_at DESC LIMIT ?", (limit,)
+        )
+        rows = cursor.fetchall()
+        return [
+            {
+                "call_id": row["call_id"],
+                "participant_name": row["participant_name"],
+                "channel": row["channel"],
+                "duration_seconds": row["duration_seconds"],
+                "exercises_completed": row["exercises_completed"],
+                "outcome": row["outcome"],
+                "failure_reason": row["failure_reason"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+
+def clear_all_call_logs() -> None:
+    """Clear all call logs from SQLite (used for test cleanup and resetting database)."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM call_logs")
+        conn.commit()
+
+
+def clear_all_escalation_tickets() -> None:
+    """Clear all escalation tickets from SQLite (used for test cleanup and resetting database)."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM escalations")
+        conn.commit()
+
+
+def clear_entire_database() -> None:
+    """Clear all records from users, escalations, and call_logs tables."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM users")
+        cursor.execute("DELETE FROM escalations")
+        cursor.execute("DELETE FROM call_logs")
+        conn.commit()

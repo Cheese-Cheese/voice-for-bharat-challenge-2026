@@ -76,12 +76,12 @@ export default function TeacherDashboardPage() {
         {/* Header Bar */}
         <div className="flex flex-col items-start justify-between gap-4 border-b border-slate-800 pb-6 md:flex-row md:items-center">
           <div>
-            <Link
+            <a
               href="/"
               className="mb-2 inline-flex items-center gap-2 text-xs font-semibold text-indigo-400 transition-colors hover:text-indigo-300"
             >
               ← Back to Shiksha AI Session
-            </Link>
+            </a>
             <h1 className="flex items-center gap-3 text-3xl font-extrabold tracking-tight text-white">
               <span>👩‍🏫 Human Teacher Escalation Dashboard</span>
             </h1>

@@ -63,6 +63,9 @@ export default async function RootLayout({ children }: RootLayoutProps) {
         {styles && <style>{styles}</style>}
         <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+        <link rel="alternate icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/logo.svg" />
       </head>
       <body className="overflow-x-hidden">
         <ThemeProvider

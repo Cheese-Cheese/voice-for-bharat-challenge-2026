@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 import uuid
 
 import aiohttp
@@ -58,14 +59,20 @@ STRICT LANGUAGE & SCRIPT RULES:
 STRICT LIVE TOOL MANDATES:
 1. WORD DEFINITION LOOKUP: When a learner asks for word meanings or definitions, call `lookup_word_definition(word=X)`.
 2. GRAMMAR CHECK MANDATE: When evaluating a sentence or checking grammar, call `check_sentence_grammar(sentence=X)`.
-3. CONSENT & MEMORY: Ask for consent before saving details. If told to "forget me", call `forget_caller_profile`.
+3. POST-ACTIVITY CONSENT & NAME MANDATE: At the end of an activity, if the learner's name is not yet known, ASK: "Great job! What is your name, and may I save your name and progress so I remember you next time?" If they agree, call `save_caller_profile`.
+4. FORGET ME: If told to "forget me", call `forget_caller_profile`.
 """
 
 
 class OutboundAssistant(Agent):
-    def __init__(self, room: rtc.Room | None = None) -> None:
+    def __init__(self, room: rtc.Room | None = None, call_id: str = "") -> None:
         super().__init__(instructions=OUTBOUND_SYSTEM_PROMPT)
         self.room = room
+        self.call_id = call_id or f"SIP-{uuid.uuid4().hex[:6].upper()}"
+        self.participant_name = "SIP Caller"
+        self.exercises_completed = 0
+        self.start_time = time.time()
+        self.logged = False
 
     @function_tool
     async def escalate_to_human_teacher(
@@ -89,8 +96,12 @@ class OutboundAssistant(Agent):
         if not consent_given:
             return "Consent not granted. Escalation ticket NOT created."
 
+        self.exercises_completed += 1
+        if learner_name and learner_name.strip() and learner_name.lower() != "learner":
+            self.participant_name = learner_name.strip().title()
+
         ticket = db.create_escalation_ticket(
-            learner_name=learner_name or "Learner",
+            learner_name=self.participant_name,
             reason=reason,
             summary=summary,
             urgency=urgency,
@@ -125,6 +136,7 @@ class OutboundAssistant(Agent):
     @function_tool
     async def lookup_word_definition(self, context: RunContext, word: str) -> str:
         """Fetch real-time word definition from live Free Dictionary API."""
+        self.exercises_completed += 1
         res = await tools.fetch_word_definition(word)
         try:
             payload = json.dumps(
@@ -160,7 +172,8 @@ class OutboundAssistant(Agent):
 
     @function_tool
     async def check_sentence_grammar(self, context: RunContext, sentence: str) -> str:
-        """Check a spoken sentence for real-time grammar rules using LanguageTool API."""
+        """Check spoken sentence for grammar using LanguageTool API."""
+        self.exercises_completed += 1
         res = await tools.check_grammar_rules(sentence)
         try:
             payload = json.dumps(
@@ -201,6 +214,11 @@ class OutboundAssistant(Agent):
     ) -> str:
         """Lookup stored learner profile from SQLite database."""
         profile = db.get_user_profile_by_name_or_id(name=name, user_id=user_id)
+        if profile and profile.get("name"):
+            self.participant_name = profile["name"].strip().title()
+        elif name and name.strip():
+            self.participant_name = name.strip().title()
+
         if not profile:
             return f"No memory profile found for '{name or user_id}'."
         return (
@@ -221,15 +239,19 @@ class OutboundAssistant(Agent):
         """Save learner facts in SQLite database after obtaining explicit consent."""
         if not consent_given:
             return "Consent not granted. Profile not saved."
+        self.exercises_completed += 1
+        if name and name.strip():
+            self.participant_name = name.strip().title()
+
         db.save_user_profile(
             user_id=user_id,
-            name=name,
+            name=self.participant_name,
             current_level=current_level,
             topics_covered=topics_covered,
             common_mistakes=common_mistakes,
             consent_given=consent_given,
         )
-        return f"Successfully saved profile for {name}."
+        return f"Successfully saved profile for {self.participant_name}."
 
     @function_tool
     async def forget_caller_profile(

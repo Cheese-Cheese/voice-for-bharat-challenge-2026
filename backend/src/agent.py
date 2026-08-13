@@ -1,5 +1,7 @@
 import json
 import logging
+import time
+import uuid
 
 from dotenv import load_dotenv
 from livekit import rtc
@@ -69,12 +71,13 @@ RETURNING CALLER SELECTION & MEMORY LOOKUP:
 - If found, welcome them back personally: "Welcome back Ramesh! Last time we practiced [topics]. Would you like to continue or try something new today?"
 - If the DB is empty or user is new, DO NOT ask for their name upfront! Let them practice freely and ask for consent to save their details later.
 
-PROACTIVE MEMORY & CONSENT:
+PROACTIVE MEMORY & CONSENT (MANDATORY):
 - You have persistent memory functions: `lookup_caller`, `save_caller_profile`, `forget_caller_profile`.
-- CONSENT MANDATE: During or at the end of practice (or when user shares their name), YOU MUST ASK for consent before saving:
-  "May I save your name and learning progress so I remember you next time we practice?"
-- If the learner agrees (says yes, sure, okay, yeah) -> IMMEDIATELY call `save_caller_profile` with their name, level, topics, and mistakes.
-- If the learner declines (says no, don't save) -> DO NOT call `save_caller_profile`. Reassure them warmly that no data will be stored.
+- POST-ACTIVITY CONSENT & NAME MANDATE:
+  * AS SOON AS ANY LEARNING ACTIVITY (word lookup, grammar check, or practice exercise) IS COMPLETED, IF THE LEARNER'S NAME IS NOT YET KNOWN, YOU MUST IMMEDIATELY ASK FOR THEIR NAME AND CONSENT TO SAVE:
+    "Great effort! May I ask your name, and may I save your name and practice progress so I remember you next time?"
+  * As soon as the learner provides their name and agrees (says yes, sure, okay) -> IMMEDIATELY call `save_caller_profile(name=name, ...)`!
+  * If the learner declines -> DO NOT call `save_caller_profile`. Reassure them warmly that no data will be stored.
 - FORGET ME TOOL: If the learner asks you to "forget me", "delete my data", or "clear my memory" -> call `forget_caller_profile` immediately and confirm that all stored memory records have been wiped.
 
 HUMAN TEACHER ESCALATION MANDATE (DAY 7):
@@ -99,9 +102,15 @@ STYLE FOR SPEECH:
 
 
 class Assistant(Agent):
-    def __init__(self, room: rtc.Room | None = None) -> None:
+    def __init__(self, room: rtc.Room | None = None, call_id: str = "") -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
         self.room = room
+        self.call_id = call_id or f"CALL-{uuid.uuid4().hex[:6].upper()}"
+        self.participant_name = "Learner"
+        self.exercises_completed = 0
+        self.user_speech_turns = 0
+        self.start_time = time.time()
+        self.logged = False
 
     @function_tool
     async def escalate_to_human_teacher(
@@ -125,8 +134,12 @@ class Assistant(Agent):
         if not consent_given:
             return "Consent not granted by the learner. Human escalation ticket was NOT created."
 
+        self.exercises_completed += 1
+        if learner_name and learner_name.strip() and learner_name.lower() != "learner":
+            self.participant_name = learner_name.strip().title()
+
         ticket = db.create_escalation_ticket(
-            learner_name=learner_name or "Learner",
+            learner_name=self.participant_name,
             reason=reason,
             summary=summary,
             urgency=urgency,
@@ -167,6 +180,7 @@ class Assistant(Agent):
         Args:
             word: The English word to define or explain.
         """
+        self.exercises_completed += 1
         res = await tools.fetch_word_definition(word)
         try:
             payload = json.dumps(
@@ -209,6 +223,7 @@ class Assistant(Agent):
         Args:
             sentence: The spoken sentence or phrase to check for grammar.
         """
+        self.exercises_completed += 1
         res = await tools.check_grammar_rules(sentence)
         try:
             payload = json.dumps(
@@ -258,6 +273,11 @@ class Assistant(Agent):
             user_id: Unique identifier for caller.
         """
         profile = db.get_user_profile_by_name_or_id(name=name, user_id=user_id)
+        if profile and profile.get("name"):
+            self.participant_name = profile["name"].strip().title()
+        elif name and name.strip():
+            self.participant_name = name.strip().title()
+
         if not profile:
             return f"No previous memory profile found for '{name or user_id}'. This is a new learner."
         return (
@@ -291,9 +311,13 @@ class Assistant(Agent):
         if not consent_given:
             return "Consent was not granted. No caller profile saved."
 
+        self.exercises_completed += 1
+        if name and name.strip():
+            self.participant_name = name.strip().title()
+
         db.save_user_profile(
             user_id=user_id,
-            name=name,
+            name=self.participant_name,
             current_level=current_level,
             topics_covered=topics_covered,
             common_mistakes=common_mistakes,
@@ -385,11 +409,49 @@ async def my_agent(ctx: JobContext):
         except Exception as err:
             logger.warning(f"Data packet parse error: {err}")
 
+    @session.on("user_speech_committed")
+    def on_user_speech(msg):
+        assistant.user_speech_turns += 1
+
+    def _finalize_call_log(reason: str = "Participant Disconnected"):
+        if not assistant.logged:
+            duration = int(time.time() - assistant.start_time)
+            is_success = (
+                assistant.exercises_completed > 0
+                or assistant.user_speech_turns >= 2
+                or (
+                    assistant.participant_name
+                    and assistant.participant_name.lower() != "learner"
+                )
+            )
+            total_exercises = max(
+                assistant.exercises_completed, assistant.user_speech_turns
+            )
+            db.log_call_session(
+                call_id=assistant.call_id,
+                participant_name=assistant.participant_name,
+                channel="Web Browser",
+                duration_seconds=duration,
+                exercises_completed=total_exercises,
+                failure_reason="" if is_success else reason,
+            )
+            assistant.logged = True
+            logger.info(
+                f"📊 Finalized call log for {assistant.call_id}: exercises={total_exercises}, success={is_success}, duration={duration}s"
+            )
+
+    @ctx.room.on("disconnected")
+    def on_disconnected():
+        _finalize_call_log("Participant Disconnected")
+
+    ctx.add_shutdown_callback(lambda: _finalize_call_log("Session Terminated"))
+
     # Dynamic Conditional Memory Greeting: Check SQLite for existing memory profiles
     profiles = db.get_all_user_profiles()
     if len(profiles) >= 1:
         names = [p["name"] for p in profiles if p.get("name")]
         if len(names) == 1:
+            assistant.participant_name = names[0]
             greeting = (
                 f"Namaste! Welcome back to Shiksha AI. "
                 f"Are you {names[0]}, or is someone new practicing today?"
