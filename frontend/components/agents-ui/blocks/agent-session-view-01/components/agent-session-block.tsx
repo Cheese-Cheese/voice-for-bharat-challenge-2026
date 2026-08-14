@@ -184,6 +184,18 @@ export function AgentSessionView_01({
     }
   };
 
+  const [activeAgentInfo, setActiveAgentInfo] = useState<{
+    name: string;
+    role: string;
+    voice: string;
+    isSpecialist: boolean;
+  }>({
+    name: 'Shiksha AI',
+    role: 'Main Voice Tutor',
+    voice: 'Anisha Voice',
+    isSpecialist: false,
+  });
+
   useEffect(() => {
     if (!room) return;
     const handleDataReceived = (
@@ -192,13 +204,29 @@ export function AgentSessionView_01({
       kind: any,
       topic?: string
     ) => {
-      if (topic === 'tool_results' || !topic) {
+      if (topic === 'agent_tool_results' || topic === 'tool_results' || !topic) {
         try {
           const str = new TextDecoder().decode(payload);
           const data = JSON.parse(str);
           if (data.type === 'tool_result') {
             console.log('[FallbackTest] Received tool_result data payload:', data);
             setActiveToolCard(data);
+
+            if (data.tool === 'transfer_to_scenario_specialist') {
+              setActiveAgentInfo({
+                name: data.data?.agent_name || 'Mitra AI',
+                role: data.data?.agent_role || 'Real-Life Scenario Roleplay Specialist',
+                voice: 'Samar Voice (Male)',
+                isSpecialist: true,
+              });
+            } else if (data.tool === 'return_to_main_tutor') {
+              setActiveAgentInfo({
+                name: 'Shiksha AI',
+                role: 'Main Voice Tutor',
+                voice: 'Anisha Voice (Female)',
+                isSpecialist: false,
+              });
+            }
           }
         } catch (err) {
           console.error('Failed to parse tool result data payload:', err);
@@ -242,22 +270,30 @@ export function AgentSessionView_01({
     >
       <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
 
-      {/* Prominent State & Speaker Banner for Day 3 & Day 5 Fallback Test Switch */}
+      {/* Prominent State & Speaker Banner for Day 3, Day 5 Fallback & Day 9 Switched Agent */}
       <div className="pointer-events-auto absolute top-12 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3">
-        <div className="bg-background/90 text-foreground flex items-center gap-2 rounded-full border border-indigo-500/30 px-4 py-1.5 text-xs font-semibold shadow-xl backdrop-blur-md">
+        <div
+          className={cn(
+            'bg-background/90 text-foreground flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold shadow-xl backdrop-blur-md transition-all duration-300',
+            activeAgentInfo.isSpecialist
+              ? 'border-purple-500/50 ring-1 ring-purple-500/30'
+              : 'border-indigo-500/30'
+          )}
+        >
           <span
             className={cn(
               'size-2.5 animate-pulse rounded-full',
-              agentState === 'speaking' && 'bg-green-500',
+              agentState === 'speaking' && (activeAgentInfo.isSpecialist ? 'bg-purple-400' : 'bg-green-500'),
               agentState === 'listening' && 'bg-indigo-500',
               agentState === 'thinking' && 'bg-amber-500',
               (agentState === 'connecting' || agentState === 'initializing') && 'bg-blue-500'
             )}
           />
           <span>
-            {agentState === 'speaking' && '🔊 Shiksha AI is speaking...'}
-            {agentState === 'listening' && '🎙️ Listening to you...'}
-            {agentState === 'thinking' && '🧠 Thinking...'}
+            {agentState === 'speaking' &&
+              `${activeAgentInfo.isSpecialist ? '🎭' : '🔊'} ${activeAgentInfo.name} is speaking...`}
+            {agentState === 'listening' && `🎙️ Listening to you (${activeAgentInfo.name})...`}
+            {agentState === 'thinking' && `🧠 ${activeAgentInfo.name} is thinking...`}
             {(agentState === 'connecting' || agentState === 'initializing') &&
               '⏳ Connecting to agent...'}
             {agentState === 'disconnected' && 'Disconnected'}
@@ -456,12 +492,55 @@ export function AgentSessionView_01({
                       </div>
                     </div>
                   )}
+
+                  {activeToolCard.tool === 'transfer_to_scenario_specialist' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="rounded-md bg-purple-500/20 px-2.5 py-0.5 text-xs font-semibold tracking-wider text-purple-300 uppercase">
+                          🎭 Specialist Agent Active
+                        </span>
+                        <span className="rounded border border-purple-500/30 bg-purple-950 px-2 py-0.5 font-mono text-xs font-bold text-purple-200">
+                          {activeToolCard.data?.agent_name || 'Mitra AI'}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold text-purple-200">
+                          Scenario: {activeToolCard.data?.scenario_type || 'Real-Life Roleplay'}
+                        </h3>
+                        <p className="mt-0.5 text-xs font-semibold text-purple-300">
+                          {activeToolCard.data?.agent_role || 'Real-Life Scenario Roleplay Specialist'}
+                        </p>
+                      </div>
+                      <p className="bg-purple-950/40 text-purple-100 border-purple-800/40 rounded-xl border p-3 text-xs leading-relaxed">
+                        Session handed off to <strong>Mitra AI</strong>. Practice your scenario turn-by-turn!
+                      </p>
+                    </div>
+                  )}
+
+                  {activeToolCard.tool === 'return_to_main_tutor' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="rounded-md bg-indigo-500/20 px-2.5 py-0.5 text-xs font-semibold tracking-wider text-indigo-300 uppercase">
+                          ↩️ Returned to Main Tutor
+                        </span>
+                        <span className="rounded border border-indigo-500/30 bg-indigo-950 px-2 py-0.5 font-mono text-xs font-bold text-indigo-200">
+                          Shiksha AI
+                        </span>
+                      </div>
+                      <p className="bg-indigo-950/40 text-indigo-100 border-indigo-800/40 rounded-xl border p-3 text-xs leading-relaxed">
+                        Roleplay completed! Returned to <strong>Shiksha AI</strong> for general English practice.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </div>
           )
         )}
       </AnimatePresence>
+
+
+
       {/* Tile layout */}
       <TileLayout
         chatOpen={chatOpen}

@@ -92,6 +92,10 @@ HUMAN TEACHER ESCALATION MANDATE (DAY 7):
 3. REFERENCE ID & NEXT STEP:
    - When a ticket is created, report the reference ID returned by the tool (e.g. ESC-XXXXXX) to the learner and reassure them warmly that a human teacher will review their practice notes within 24 hours.
 
+SPECIALIST HANDOFF MANDATE (DAY 9):
+- If the learner asks to practice a real-life scenario or roleplay a situation (e.g. fast food restaurant, ordering pizza, cafe, asking for directions, buying groceries, doctor appointment), or asks for the scenario tutor (e.g. "Let's roleplay", "Practice ordering food", "Connect me to the scenario tutor"), IMMEDIATELY CALL `transfer_to_scenario_specialist(scenario_type=X)`. Do NOT speak any introductory text yourself as the tool will announce the transition out loud automatically.
+- HANDBACK RULE: When returning from a specialist handoff, do NOT repeat any welcome back greeting yourself, as your return check-in question will be asked automatically. Listen and respond to the user's answer.
+
 CONVERSATION FLOW & DURATION:
 - Keep the practice conversation short and focused (about 3 turns of practice).
 - At the end of 3 turns, check in with the user: "We've completed a quick practice round! Would you like to continue practicing or wrap up for today?"
@@ -101,9 +105,42 @@ STYLE FOR SPEECH:
 - Do NOT use markdown, bullet points, numbered lists, emojis, brackets, or special formatting."""
 
 
+MITRA_SPECIALIST_PROMPT = """IDENTITY:
+You are "Mitra AI", a warm, energetic, and encouraging Real-Life Scenario Roleplay Specialist for Indian English learners under the Learning & Literacy track.
+
+OBJECTIVES:
+- Play interactive, turn-by-turn real-life scenario roles based on EXACTLY what the learner requested (e.g. Fast Food Restaurant, Ordering Pizza, Metro Directions, Grocery Store, Doctor Visit, Hotel Booking).
+- Help learners practice practical everyday English in real situations.
+- Stay strictly in character during the scenario roleplay!
+
+DYNAMIC SCENARIO MATCHING:
+- Look at CURRENT SCENARIO and adapt IMMEDIATELY to that exact setting.
+- NEVER default to "cafe" or "coffee shop" unless the user explicitly asked for a cafe!
+
+OPENING RULE:
+- On your very first sentence, introduce yourself as Mitra AI and immediately step into character for the EXACT scenario requested.
+  * Fast Food / Restaurant: "Namaste! I am Mitra AI. Welcome to our fast food restaurant! What would you like to order today?"
+  * Metro / Street Directions: "Namaste! I am Mitra AI. Where are you trying to travel today?"
+  * Grocery / Shopping: "Namaste! I am Mitra AI. Welcome to the store! What items can I help you find today?"
+- Do NOT ask "what would you like to say first". Always take the initiative and open the dialogue in character!
+
+RULES & STYLE:
+- Speak in clear, warm Indian English.
+- Always write non-English words in native script (Hindi → Devanagari नमस्ते).
+- Keep responses short and conversational (1 to 2 short sentences per turn).
+- Do NOT use markdown, bullet points, or emojis in spoken speech.
+- When scenario practice is completed or the learner asks to return to main practice, call `return_to_main_tutor()`."""
+
+
 class Assistant(Agent):
     def __init__(self, room: rtc.Room | None = None, call_id: str = "") -> None:
-        super().__init__(instructions=SYSTEM_PROMPT)
+        main_tts = murf.TTS(
+            voice="Anisha",
+            style="Conversation",
+            tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
+            text_pacing=True,
+        )
+        super().__init__(instructions=SYSTEM_PROMPT, tts=main_tts)
         self.room = room
         self.call_id = call_id or f"CALL-{uuid.uuid4().hex[:6].upper()}"
         self.participant_name = "Learner"
@@ -111,6 +148,21 @@ class Assistant(Agent):
         self.user_speech_turns = 0
         self.start_time = time.time()
         self.logged = False
+        self.is_returned_from_handback = False
+
+    async def on_enter(self) -> None:
+        """Trigger proactive check-in question ONLY when returned from specialist handback."""
+        if self.is_returned_from_handback and hasattr(self, "session") and self.session:
+            logger.info(
+                "🎓 Shiksha AI re-entered session after handback — asking check-in question..."
+            )
+            self.is_returned_from_handback = False
+            try:
+                await self.session.say(
+                    "Welcome back! How did your practice conversation go with Mitra AI?"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to speak Shiksha AI handback check-in: {e}")
 
     @function_tool
     async def escalate_to_human_teacher(
@@ -336,9 +388,136 @@ class Assistant(Agent):
             user_id: Unique identifier for the caller.
         """
         deleted = db.delete_user_profile(name=name, user_id=user_id)
+        self.participant_name = "Learner"
         if deleted:
-            return "Successfully deleted and wiped stored memory records."
-        return "No memory records were found to delete."
+            return "Successfully deleted and wiped stored memory records. I have cleared your profile."
+        return "No memory records found to delete."
+
+    @function_tool
+    async def transfer_to_scenario_specialist(
+        self, context: RunContext, scenario_type: str = "Real-Life Practice"
+    ) -> Agent:
+        """Hand off the conversation to Mitra AI (Real-Life Scenario Roleplay Specialist) when the learner wants to practice real-life scenario roleplay (e.g. fast food restaurant, ordering food, asking directions, shopping, clinic visits).
+
+        Args:
+            scenario_type: Exact type of real-life scenario requested by learner (e.g. Fast Food Restaurant, Ordering Pizza, Asking Directions, Grocery Shopping, Doctor Appointment).
+        """
+        logger.info(
+            f"🎭 Handoff triggered to Mitra AI (Scenario Specialist) for scenario: {scenario_type}"
+        )
+        self.exercises_completed += 1
+
+        # Speak transition phrase out loud using Shiksha AI's voice (Anisha) and wait for audio playout
+        if context and hasattr(context, "session") and context.session:
+            try:
+                speech_handle = await context.session.say(
+                    "Sounds fun! I will connect you to Mitra AI, our real-life scenario roleplay specialist."
+                )
+                if hasattr(context, "wait_for_playout"):
+                    await context.wait_for_playout(speech_handle)
+            except Exception as err:
+                logger.warning(f"Error during handoff speech playout: {err}")
+
+        try:
+            if self.room and self.room.local_participant:
+                payload = json.dumps(
+                    {
+                        "type": "tool_result",
+                        "tool": "transfer_to_scenario_specialist",
+                        "data": {
+                            "agent_name": "Mitra AI",
+                            "agent_role": "Real-Life Scenario Roleplay Specialist",
+                            "scenario_type": scenario_type,
+                            "status": "HANDOFF_ACTIVE",
+                        },
+                    }
+                )
+                await self.room.local_participant.publish_data(
+                    payload.encode("utf-8"),
+                    topic="agent_tool_results",
+                )
+        except Exception as e:
+            logger.warning(f"Could not publish handoff UI payload: {e}")
+
+        return ScenarioSpecialist(
+            room=self.room,
+            call_id=self.call_id,
+            participant_name=self.participant_name,
+            scenario_type=scenario_type,
+            parent_assistant=self,
+        )
+
+
+class ScenarioSpecialist(Agent):
+    """Specialist Agent (Mitra AI) for interactive real-life scenario roleplays."""
+
+    def __init__(
+        self,
+        room: rtc.Room | None = None,
+        call_id: str = "",
+        participant_name: str = "Learner",
+        scenario_type: str = "Real-Life Practice",
+        parent_assistant: Assistant | None = None,
+    ) -> None:
+        instructions = (
+            f"{MITRA_SPECIALIST_PROMPT}\n\n"
+            f"CURRENT SCENARIO: You are roleplaying a '{scenario_type}' scenario with {participant_name}. "
+            f"Start immediately by introducing yourself as Mitra AI and opening the scenario!"
+        )
+        specialist_tts = murf.TTS(
+            voice="Samar",
+            style="Conversation",
+            tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
+            text_pacing=True,
+        )
+        super().__init__(instructions=instructions, tts=specialist_tts)
+        self.room = room
+        self.call_id = call_id
+        self.participant_name = participant_name
+        self.scenario_type = scenario_type
+        self.parent_assistant = parent_assistant
+
+    async def on_enter(self) -> None:
+        """Trigger one single proactive opening reply in character when Mitra AI takes over."""
+        logger.info(
+            "🎭 Mitra AI entered session — generating proactive in-character opening..."
+        )
+        if hasattr(self, "session") and self.session:
+            try:
+                await self.session.generate_reply()
+            except Exception as e:
+                logger.warning(f"Failed to generate proactive Mitra AI greeting: {e}")
+
+    @function_tool
+    async def return_to_main_tutor(self, context: RunContext) -> Agent:
+        """Hand back the conversation to Shiksha AI (Main Tutor) when the scenario roleplay is complete or when the learner asks to return to main English practice."""
+        logger.info("↩️ Handback triggered from Mitra AI to Shiksha AI (Main Tutor)")
+
+        try:
+            if self.room and self.room.local_participant:
+                payload = json.dumps(
+                    {
+                        "type": "tool_result",
+                        "tool": "return_to_main_tutor",
+                        "data": {
+                            "agent_name": "Shiksha AI",
+                            "agent_role": "Main Voice Tutor",
+                            "status": "RETURNED_TO_MAIN",
+                        },
+                    }
+                )
+                await self.room.local_participant.publish_data(
+                    payload.encode("utf-8"),
+                    topic="agent_tool_results",
+                )
+        except Exception as e:
+            logger.warning(f"Could not publish handback UI payload: {e}")
+
+        target_agent = self.parent_assistant or Assistant(
+            room=self.room, call_id=self.call_id
+        )
+        target_agent.is_returned_from_handback = True
+        return target_agent
 
 
 server = AgentServer()

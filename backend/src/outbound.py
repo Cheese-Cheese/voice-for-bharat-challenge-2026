@@ -259,6 +259,7 @@ class OutboundAssistant(Agent):
     ) -> str:
         """Delete stored memory profile from SQLite database on 'forget me' request."""
         deleted = db.delete_user_profile(name=name, user_id=user_id)
+        self.participant_name = "Learner"
         if deleted:
             return "Successfully deleted stored memory records."
         return "No memory records found to delete."
