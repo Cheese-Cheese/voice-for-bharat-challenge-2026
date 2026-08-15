@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import time
@@ -525,6 +526,15 @@ server = AgentServer()
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
+    try:
+        from src.scheduler import start_outbound_scheduler_loop
+
+        proc.userdata["scheduler_task"] = asyncio.create_task(
+            start_outbound_scheduler_loop()
+        )
+        logger.info("🚀 Outbound call scheduler background task spawned successfully.")
+    except Exception as e:
+        logger.warning(f"Could not start outbound call scheduler background task: {e}")
 
 
 server.setup_fnc = prewarm

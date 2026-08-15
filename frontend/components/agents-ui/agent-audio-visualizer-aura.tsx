@@ -174,10 +174,15 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     // use bloom effect
     bloom = bloom / (bloom + 2e4);
     color = (-pp + bloom * 3.0 * uBloom) * 1.2;
-    color += (randFibo(fragCoord).x - 0.5) / 255.0;
-    color = Tonemap(color);
-    float alpha = luma(color) * uMix;
-    fragColor = vec4(color * uMix, alpha);
+    float baseAlpha = luma(color);
+    if (baseAlpha > 0.002) {
+      color += (randFibo(fragCoord).x - 0.5) / 255.0;
+      color = Tonemap(color);
+      float alpha = clamp(baseAlpha * uMix, 0.0, 1.0);
+      fragColor = vec4(color * uMix, alpha);
+    } else {
+      fragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    }
   }
     
   // Light mode 

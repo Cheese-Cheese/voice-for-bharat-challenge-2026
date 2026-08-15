@@ -2,10 +2,11 @@
 
 [![Voice for Bharat Challenge 2026](https://img.shields.io/badge/Challenge-Voice%20for%20Bharat%202026-indigo)](https://murf.ai)
 [![Track: Learning & Literacy](https://img.shields.io/badge/Track-Learning%20%26%20Literacy-emerald)](https://murf.ai)
-[![TTS: Murf Falcon](https://img.shields.io/badge/TTS-Murf%20Falcon%20(Anisha)-6366F1)](https://murf.ai/api/docs/text-to-speech/streaming)
+[![TTS: Murf Falcon](https://img.shields.io/badge/TTS-Murf%20Falcon%20(Anisha%2FSamar)-6366F1)](https://murf.ai/api/docs/text-to-speech/streaming)
 [![STT: Deepgram Nova-3](https://img.shields.io/badge/STT-Deepgram%20Nova--3-002cf2)](https://deepgram.com)
-[![LLM: Gemini 3.5 Flash Lite](https://img.shields.io/badge/LLM-Gemini%203.5%20Flash%20Lite-4285F4)](https://aistudio.google.com)
+[![LLM: Gemini 2.5 Flash / Groq Llama 3.3](https://img.shields.io/badge/LLM-Gemini%202.5%20Flash%20%2F%20Groq%20Llama%203.3-4285F4)](https://aistudio.google.com)
 [![Telephony: LiveKit SIP](https://img.shields.io/badge/Telephony-LiveKit%20SIP%20%2B%20Linphone-ff69b4)](https://docs.livekit.io/telephony)
+[![Blog: DEV.to Article](https://img.shields.io/badge/Blog-DEV.to%20Article-0A0A0A?logo=devto)](https://dev.to/ilhan_mansij_jidda/shiksha-ai-mitra-ai-real-time-spoken-english-roleplay-voice-agent-for-bharat-4n6e)
 
 **Shiksha AI** is a patient, warm, and interactive spoken English tutor built for learners across India. Powered by **Murf Falcon TTS** (the world's fastest streaming TTS API) and **LiveKit Agents**, Shiksha AI helps users practice conversational English, look up live word definitions, analyze sentence grammar, remember past learner progress, and receive daily outbound practice calls over SIP telephony.
 
@@ -107,6 +108,22 @@ flowchart TD
 - **Dedicated Next.js Call Analytics Dashboard Page (`/analytics-dashboard`)**:
   - Displays the 3 core metrics: 📞 **Total Calls**, ✅ **Successful Calls**, ❌ **Failed Calls**.
   - Advanced metrics: 🎯 **Success Rate (%)**, ⏱️ **Avg Duration (s)**, **Failure Reason Breakdown**, and **Recent Call Sessions Table** with live auto-refreshing every 5 seconds.
+
+### 🎭 Day 9 – Hand Conversations to a Specialist Agent (Mitra AI Roleplay Specialist)
+- **Multi-Agent Dynamic Handoff**: Built seamless live transfer from **Shiksha AI** (`Anisha` voice) to **Mitra AI** (`ScenarioSpecialist` with `Samar` voice).
+- **Interactive Practice Scenarios**: Supports 4 real-world roleplay scenarios:
+  1. 🍔 **Restaurant**: Ordering food at a fast-food counter.
+  2. 📍 **Directions**: Asking for street or metro station directions.
+  3. 🛒 **Shopping**: Buying groceries and negotiating prices.
+  4. 🩺 **Doctor Clinic**: Describing symptoms and making an appointment.
+- **Seamless Handback**: Once scenario practice finishes, Mitra AI calls `return_to_main_tutor()` to return the call cleanly to Shiksha AI for progress check-in.
+- **Frontend Specialist Banner**: Displays a glowing glassmorphism banner on screen during active specialist handoff sessions (`🎭 Mitra AI (Roleplay Specialist) Active`).
+
+### 📝 Day 10 – Share Your Voice Agent Journey (Blog Post & Project Finalization)
+- **Published Article**: Written and published a comprehensive technical article detailing the 10-day architecture, key features, technical challenges overcome (SIP loopbacks, console encoding, session reuse), and step-by-step developer guide.
+- 📖 **Read the Full Article on DEV Community**: [🇮🇳 Shiksha AI & Mitra AI: Real-Time Spoken English & Roleplay Voice Agent for Bharat](https://dev.to/ilhan_mansij_jidda/shiksha-ai-mitra-ai-real-time-spoken-english-roleplay-voice-agent-for-bharat-4n6e)
+- **Comprehensive Outbound Call Scheduler Modal**: Added an interactive web UI modal allowing learners to schedule outbound SIP calls with custom timer delays, smooth entrance/exit animations, and live Linphone registration guide tooltips.
+- **100% Verified Test Suite**: Clean 22/22 pytest pass rate and zero ruff/eslint lint errors.
 
 ---
 

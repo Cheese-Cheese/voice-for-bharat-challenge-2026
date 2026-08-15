@@ -63,6 +63,18 @@ def init_db() -> None:
             )
             """
         )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS scheduled_calls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                participant_name TEXT NOT NULL,
+                phone_number TEXT NOT NULL,
+                scheduled_at TEXT NOT NULL,
+                status TEXT DEFAULT 'PENDING',
+                created_at TEXT NOT NULL
+            )
+            """
+        )
         conn.commit()
 
 
@@ -451,11 +463,99 @@ def clear_all_escalation_tickets() -> None:
 
 
 def clear_entire_database() -> None:
-    """Clear all records from users, escalations, and call_logs tables."""
+    """Clear all records from users, escalations, call_logs, and scheduled_calls tables."""
     init_db()
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM users")
         cursor.execute("DELETE FROM escalations")
         cursor.execute("DELETE FROM call_logs")
+        cursor.execute("DELETE FROM scheduled_calls")
         conn.commit()
+
+
+def schedule_outbound_call(
+    participant_name: str,
+    phone_number: str,
+    scheduled_at_iso: str,
+) -> dict[str, Any]:
+    """Insert a new scheduled outbound call into SQLite."""
+    init_db()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO scheduled_calls (participant_name, phone_number, scheduled_at, status, created_at)
+            VALUES (?, ?, ?, 'PENDING', ?)
+            """,
+            (participant_name.strip(), phone_number.strip(), scheduled_at_iso, now_iso),
+        )
+        conn.commit()
+        call_id = cursor.lastrowid
+
+    return {
+        "id": call_id,
+        "participant_name": participant_name,
+        "phone_number": phone_number,
+        "scheduled_at": scheduled_at_iso,
+        "status": "PENDING",
+        "created_at": now_iso,
+    }
+
+
+def get_due_scheduled_calls() -> list[dict[str, Any]]:
+    """Retrieve all pending scheduled calls where scheduled_at is past or due."""
+    init_db()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM scheduled_calls WHERE status = 'PENDING' AND scheduled_at <= ? ORDER BY scheduled_at ASC",
+            (now_iso,),
+        )
+        rows = cursor.fetchall()
+        return [
+            {
+                "id": row["id"],
+                "participant_name": row["participant_name"],
+                "phone_number": row["phone_number"],
+                "scheduled_at": row["scheduled_at"],
+                "status": row["status"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+
+def update_scheduled_call_status(call_id: int, status: str = "COMPLETED") -> bool:
+    """Update status of a scheduled call (PENDING -> COMPLETED / FAILED)."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE scheduled_calls SET status = ? WHERE id = ?",
+            (status.upper(), call_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def get_all_scheduled_calls() -> list[dict[str, Any]]:
+    """Retrieve all scheduled calls for UI listing/debugging."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM scheduled_calls ORDER BY created_at DESC")
+        rows = cursor.fetchall()
+        return [
+            {
+                "id": row["id"],
+                "participant_name": row["participant_name"],
+                "phone_number": row["phone_number"],
+                "scheduled_at": row["scheduled_at"],
+                "status": row["status"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]

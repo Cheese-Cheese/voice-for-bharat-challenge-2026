@@ -545,8 +545,10 @@ export function AgentSessionView_01({
       <TileLayout
         chatOpen={chatOpen}
         audioVisualizerType={audioVisualizerType}
-        audioVisualizerColor={audioVisualizerColor}
-        audioVisualizerColorShift={audioVisualizerColorShift}
+        audioVisualizerColor={
+          activeAgentInfo.isSpecialist ? '#350f52' : (audioVisualizerColor || '#615fff')
+        }
+        audioVisualizerColorShift={0.02}
         audioVisualizerBarCount={audioVisualizerBarCount}
         audioVisualizerRadialBarCount={audioVisualizerRadialBarCount}
         audioVisualizerRadialRadius={audioVisualizerRadialRadius}

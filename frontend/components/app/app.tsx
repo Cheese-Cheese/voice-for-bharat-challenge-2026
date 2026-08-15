@@ -13,6 +13,8 @@ import { useAgentErrors } from '@/hooks/useAgentErrors';
 import { useDebugMode } from '@/hooks/useDebug';
 import { getSandboxTokenSource } from '@/lib/utils';
 
+import { HeaderBranding } from '@/components/app/header-branding';
+
 const IN_DEVELOPMENT = process.env.NODE_ENV !== 'production';
 
 function AppSetup() {
@@ -41,6 +43,7 @@ export function App({ appConfig }: AppProps) {
   return (
     <AgentSessionProvider session={session}>
       <AppSetup />
+      <HeaderBranding appConfig={appConfig} />
       <main className="grid h-svh grid-cols-1 place-content-center">
         <ViewController appConfig={appConfig} />
       </main>

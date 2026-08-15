@@ -74,32 +74,6 @@ export default async function RootLayout({ children }: RootLayoutProps) {
           enableSystem
           disableTransitionOnChange
         >
-          <header className="fixed top-0 left-0 z-50 flex w-full flex-row items-center justify-between p-6">
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href="https://murf.ai"
-              className="flex items-center gap-2.5 transition-transform duration-300 hover:scale-105"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logo} alt={companyName} className="block size-7" />
-              <span className="text-foreground text-sm font-semibold tracking-wide">
-                {companyName}
-              </span>
-            </a>
-            <span className="text-foreground hidden font-mono text-xs font-bold tracking-wider uppercase sm:inline">
-              Built with{' '}
-              <a
-                target="_blank"
-                rel="noopener noreferrer"
-                href="https://docs.livekit.io/agents"
-                className="underline underline-offset-4"
-              >
-                LiveKit Agents
-              </a>
-            </span>
-          </header>
-
           {children}
           <div className="group fixed bottom-0 left-1/2 z-50 mb-2 -translate-x-1/2">
             <ThemeToggle className="translate-y-20 transition-transform delay-150 duration-300 group-hover:translate-y-0" />

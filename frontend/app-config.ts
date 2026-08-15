@@ -50,8 +50,9 @@ export const APP_CONFIG_DEFAULTS: AppConfig = {
   startButtonText: 'Start Learning',
 
   audioVisualizerType: 'aura',
-  audioVisualizerColor: '#6366f1',
-  audioVisualizerColorDark: '#818cf8',
+  audioVisualizerColor: '#615fff',
+  audioVisualizerColorDark: '#615fff',
+  audioVisualizerColorShift: 0.02,
 
   // agent dispatch configuration
   agentName: process.env.AGENT_NAME ?? undefined,
