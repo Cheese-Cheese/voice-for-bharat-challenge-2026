@@ -28,8 +28,8 @@ flowchart TD
     subgraph VoicePipeline["Shiksha AI Python Agent (backend/src/agent.py & outbound.py)"]
         STT["🎙️ Deepgram Nova-3 STT (Multilingual)"]
         VAD["🧠 Silero VAD + LiveKit Turn Detector"]
-        LLM["💡 Google Gemini 3.5 Flash Lite"]
-        TTS["🔊 Murf Falcon TTS (Anisha - Conversation)"]
+        LLM["💡 Google Gemini 2.5 Flash / Groq Llama 3.3"]
+        TTS["🔊 Murf Falcon TTS (Anisha / Samar)"]
     end
 
     subgraph DataIntegrations["Live Web APIs & Persistent Storage"]
@@ -89,7 +89,7 @@ flowchart TD
   1. *Who is calling*: *"Namaste! I am Shiksha AI, your spoken English learning buddy."*
   2. *Why calling*: *"I am calling for your scheduled daily English speaking practice session."*
   3. *How to opt out*: *"If you do not want to receive these daily practice calls, just tell me to stop or unsubscribe."*
-- Dispatches SIP outbound calls to Linphone clients (`sip:cheese-cheese@sip.linphone.org`) via LiveKit Telephony Trunking (`ST_7Bgf2f6Cm5Bs`).
+- Dispatches SIP outbound calls to Linphone clients via LiveKit Telephony Trunking.
 - Automatically triggers Murf Falcon TTS opening speech upon audio track subscription.
 
 ### 👩‍🏫 Day 7 – Know When to Ask for Human Help (Human Teacher Escalation Pipeline)
@@ -150,9 +150,10 @@ murf-livekit-starter/
 │   ├── src/
 │   │   ├── agent.py             # Main LiveKit voice agent entrypoint (Inbound)
 │   │   ├── outbound.py          # Day 6 Outbound SIP call agent entrypoint
+│   │   ├── scheduler.py         # Day 6 & 10 Outbound SIP call background scheduler
 │   │   ├── db.py                # Database wrapper functions (profiles, escalations, call logs)
 │   │   └── tools.py             # Live Web API integrations (Free Dict & LanguageTool)
-│   └── tests/                   # Automated unit test suite (15 tests)
+│   └── tests/                   # Automated unit test suite (22 tests)
 ├── frontend/
 │   ├── app/
 │   │   ├── analytics-dashboard/ # Day 8 Call Analytics Dashboard page
@@ -164,7 +165,7 @@ murf-livekit-starter/
 │   ├── components/              # UI components (agents-ui, visualizers, data cards)
 │   ├── app-config.ts            # Branding and accent color config
 │   └── package.json             # Frontend dependencies (managed via pnpm)
-├── challenges/                  # Challenge task reference files (Day 1 - Day 8)
+├── challenges/                  # Challenge task reference files (Day 1 - Day 10)
 └── README.md                    # Project documentation
 ```
 
@@ -189,20 +190,41 @@ DEEPGRAM_API_KEY=your_deepgram_api_key
 GOOGLE_API_KEY=your_gemini_api_key
 
 # Telephony (Day 6 Outbound SIP)
-SIP_TRUNK_ID=ST_7Bgf2f6Cm5Bs
-MY_SIP_URI=sip:cheese-cheese@sip.linphone.org
+SIP_TRUNK_ID=your_livekit_sip_trunk_id
+MY_SIP_URI=sip:your_username@sip.linphone.org
 ```
 
 ### 3. Run Backend & Frontend
 
-#### Terminal 1 — Python Voice Agent (Inbound Web App):
+#### Method A — One-Click Startup Script (Recommended)
+- **Windows (PowerShell)**:
+  ```powershell
+  .\start_app.ps1
+  ```
+- **macOS / Linux (Bash)**:
+  ```bash
+  chmod +x start_app.sh
+  ./start_app.sh
+  ```
+
+---
+
+#### Method B — Manual Terminal Setup
+
+##### Terminal 1 — Python Voice Agent Worker (Inbound Web App):
 ```bash
 cd backend
 uv sync
 uv run python src/agent.py dev
 ```
 
-#### Terminal 2 — Next.js Frontend UI:
+##### Terminal 2 — Outbound SIP Call Scheduler Daemon:
+```bash
+cd backend
+uv run python src/scheduler.py
+```
+
+##### Terminal 3 — Next.js Frontend Web UI:
 ```bash
 cd frontend
 pnpm install
@@ -210,8 +232,8 @@ pnpm dev
 ```
 Open **`http://localhost:3000`** in your browser and start talking!
 
-#### Outbound SIP Practice Call (Day 6):
-Ensure Linphone app is open and registered to `sip:cheese-cheese@sip.linphone.org`, then run:
+##### Instant Outbound SIP Practice Call (Day 6):
+Ensure Linphone app is open and registered to your SIP address, then run:
 ```bash
 cd backend
 uv run python src/outbound.py
@@ -221,7 +243,7 @@ uv run python src/outbound.py
 
 ## 🧪 Running Unit Tests
 
-Run the full automated test suite (10/10 tests passing):
+Run the full automated test suite (22/22 tests passing):
 ```bash
 cd backend
 uv run pytest
